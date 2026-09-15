@@ -473,7 +473,9 @@ pnpm --dir apps/optimitron exec tsx scripts/normalize-measurement-units.ts --var
 ```
 
 Inspect the report before you add `--apply`. Omit `--variable` to inspect all variables.
-The command preserves original entries, skips unsupported conversions, and refreshes summaries after each repair.
+The command preserves original entries and skips unsupported conversions.
+It repairs batches of 500 rows and refreshes each affected summary once per variable.
+Each variable commits in one transaction with a 60-second timeout. A failed variable rolls back.
 Correct unsupported entries through MCP with the intended amount and a compatible unit.
 
 ### Answering Tracking Reminders

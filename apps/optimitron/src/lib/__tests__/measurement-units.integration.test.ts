@@ -502,6 +502,45 @@ describe("measurement units through MCP and PostgreSQL", () => {
     expect(rows[0]).toMatchObject({ value: 150, unitId: mg });
   });
 
+  it("repairs multiple pages and refreshes the final summary across all batches", async () => {
+    await prisma.measurement.createMany({
+      data: Array.from({ length: 1001 }, (_, index) => ({
+        subjectId: SUBJECT,
+        nOf1VariableId: NOF1,
+        globalVariableId: VARIABLE,
+        startTime: new Date(Date.parse(TIME) + index * 1000),
+        value: 0.1,
+        unitId: grams,
+        originalValue: 0.1,
+        originalUnitId: grams,
+      })),
+    });
+    expect(
+      await normalizeMeasurements(prisma, {
+        globalVariableId: VARIABLE,
+        apply: true,
+      }),
+    ).toMatchObject({
+      examined: 1001,
+      changed: 1001,
+      incompatible: [],
+    });
+    expect(
+      await prisma.measurement.count({
+        where: {
+          globalVariableId: VARIABLE,
+          value: 100,
+          unitId: mg,
+          originalValue: 0.1,
+          originalUnitId: grams,
+        },
+      }),
+    ).toBe(1001);
+    expect(
+      await prisma.nOf1Variable.findUniqueOrThrow({ where: { id: NOF1 } }),
+    ).toMatchObject({ mean: 100, numberOfMeasurements: 1001 });
+  });
+
   it("repairs legacy unit rows with an idempotent dry-run command and suppresses mixed-unit summaries", async () => {
     const first = await record(150);
     await prisma.measurement.update({
