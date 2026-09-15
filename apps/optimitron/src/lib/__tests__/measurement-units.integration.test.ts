@@ -1,3 +1,7 @@
+import {
+  convertUnit,
+  getUnitDefinition,
+} from "@optimitron/data/unit-conversion";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   handleTrackingToolCall,
@@ -135,7 +139,10 @@ describe("measurement units through MCP and PostgreSQL", () => {
         defaultUnitId: mg,
       },
     });
-    setTrackingPrismaProvider(async () => prisma);
+    setTrackingPrismaProvider(async () => prisma, {
+      convertUnit,
+      getUnitDefinition,
+    });
   });
   afterAll(cleanup);
 
@@ -371,45 +378,128 @@ describe("measurement units through MCP and PostgreSQL", () => {
         where: { trackingReminderId: r.id },
       }),
     ).toMatchObject({ trackedValue: 150 });
-    await call("upsertTrackingReminder", {
-      trackingReminderId: r.id,
-      unitAbbreviation: "g",
-    });
+    await expect(
+      call("upsertTrackingReminder", {
+        trackingReminderId: r.id,
+        unitAbbreviation: "g",
+      }),
+    ).rejects.toThrow("receipts have no unit metadata");
     expect(
       await prisma.trackingReminderNotification.findFirstOrThrow({
         where: { trackingReminderId: r.id },
       }),
-    ).toMatchObject({ trackedValue: 0.15 });
+    ).toMatchObject({ trackedValue: 150 });
+    expect(
+      await prisma.nOf1Variable.findUniqueOrThrow({ where: { id: NOF1 } }),
+    ).toMatchObject({ defaultUnitId: mg });
   });
 
-  it("keeps reminder amounts consistent during concurrent preference changes", async () => {
+  it("leaves legacy receipts from different historical units untouched", async () => {
     const r = await reminder();
+    await prisma.trackingReminderNotification.createMany({
+      data: [150, 0.15].map((trackedValue, index) => ({
+        userId: USER,
+        trackingReminderId: r.id,
+        trackedValue,
+        status: "TRACKED",
+        notifyAt: new Date(`2026-09-${14 + index}T14:00:00Z`),
+      })),
+    });
+    await prisma.nOf1Variable.update({
+      where: { id: NOF1 },
+      data: { defaultUnitId: grams },
+    });
+    await expect(
+      call("upsertTrackingReminder", {
+        trackingReminderId: r.id,
+        unitAbbreviation: "mg",
+      }),
+    ).rejects.toThrow("receipts have no unit metadata");
+    const rows = await prisma.trackingReminderNotification.findMany({
+      where: { trackingReminderId: r.id },
+      orderBy: { notifyAt: "asc" },
+    });
+    expect(rows.map((row) => row.trackedValue)).toEqual([150, 0.15]);
+    expect(
+      await prisma.nOf1Variable.findUniqueOrThrow({ where: { id: NOF1 } }),
+    ).toMatchObject({ defaultUnitId: grams });
+  });
+
+  it("serializes settings-only amount edits with a unit preference change", async () => {
+    await reminder();
     for (let index = 0; index < 4; index++) {
+      await updateTrackingVariableSettingsForUser(
+        {
+          globalVariableId: VARIABLE,
+          unitAbbreviation: "mg",
+          fillingValue: 150,
+        },
+        USER,
+      );
       await Promise.all([
-        call("upsertTrackingReminder", {
-          trackingReminderId: r.id,
-          unitAbbreviation: index % 2 === 0 ? "g" : "mg",
-        }),
-        call("respondToTrackingReminder", {
-          trackingReminderId: r.id,
-          status: "TRACKED",
-          dateKey: `2026-09-${14 + index}`,
-          trackedAt: `2026-09-${14 + index}T14:00:00Z`,
-        }),
+        updateTrackingVariableSettingsForUser(
+          { globalVariableId: VARIABLE, unitAbbreviation: "g" },
+          USER,
+        ),
+        updateTrackingVariableSettingsForUser(
+          { globalVariableId: VARIABLE, fillingValue: 200 },
+          USER,
+        ),
       ]);
+      const row = await prisma.nOf1Variable.findUniqueOrThrow({
+        where: { id: NOF1 },
+      });
+      expect(row.defaultUnitId).toBe(grams);
+      // Both serial orders are valid. A conversion of the stale 150 is not.
+      expect([0.2, 200]).toContain(row.fillingValue);
     }
+  });
+
+  it("allows a no-op legacy unit during an unrelated reminder edit", async () => {
+    const r = await reminder();
+    const unit = await prisma.unit.findUniqueOrThrow({
+      where: { abbreviatedName: "servings" },
+    });
+    await prisma.nOf1Variable.update({
+      where: { id: NOF1 },
+      data: { defaultUnitId: unit.id },
+    });
+    const result = await call("upsertTrackingReminder", {
+      trackingReminderId: r.id,
+      unitAbbreviation: "servings",
+      instructions: "Updated instructions",
+    });
+    expect(result.result.reminder).toMatchObject({
+      id: r.id,
+      instructions: "Updated instructions",
+      defaultValue: 150,
+    });
+  });
+
+  it("keeps a reminder amount consistent when a preference change races its first response", async () => {
+    const r = await reminder();
+    const [preference, response] = await Promise.allSettled([
+      call("upsertTrackingReminder", {
+        trackingReminderId: r.id,
+        unitAbbreviation: "g",
+      }),
+      call("respondToTrackingReminder", {
+        trackingReminderId: r.id,
+        status: "TRACKED",
+        dateKey: "2026-09-14",
+        trackedAt: TIME,
+      }),
+    ]);
+    expect(response.status).toBe("fulfilled");
+    if (preference.status === "rejected")
+      expect(String(preference.reason)).toContain(
+        "receipts have no unit metadata",
+      );
     const rows = await prisma.measurement.findMany({
       where: { globalVariableId: VARIABLE },
     });
-    expect(rows).toHaveLength(4);
-    for (const row of rows)
-      expect(row).toMatchObject({ value: 150, unitId: mg });
-    expect(
-      await prisma.trackingReminderNotification.findMany({
-        where: { trackingReminderId: r.id },
-        select: { trackedValue: true },
-      }),
-    ).toEqual(Array.from({ length: 4 }, () => ({ trackedValue: 150 })));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ value: 150, unitId: mg });
   });
 
   it("repairs legacy unit rows with an idempotent dry-run command and suppresses mixed-unit summaries", async () => {

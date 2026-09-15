@@ -27,8 +27,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@optimitron/db": "workspace:^",
-    "@optimitron/data": "workspace:*"
+    "@optimitron/db": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.19.32",

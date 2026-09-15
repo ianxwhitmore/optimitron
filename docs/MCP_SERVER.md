@@ -459,7 +459,9 @@ Counts, rating scales, unknown units, and cross-dimension conversions require ex
 The server rejects unsupported conversions. It does not assume a capsule's mass or a solution's concentration.
 
 Unit fields on `upsertTrackingReminder` change your personal preference for that variable.
-Existing reminder presets, notification amounts, and personal numeric limits convert with that preference.
+Existing reminder presets and personal numeric limits convert with that preference.
+Prior reminder receipts have no unit metadata. A saved receipt amount blocks a preference change.
+Use explicit units on individual measurements instead. Historical receipt values remain untouched.
 A supplied `defaultValue` replaces the preset in the new unit.
 Numeric summary statistics use canonical units, regardless of the personal preference.
 

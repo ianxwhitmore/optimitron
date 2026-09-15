@@ -3,7 +3,12 @@
 // so optimitron.com and dfda.earth serve one implementation over one database.
 import type { Prisma } from "@optimitron/db";
 import { Prisma as PrismaSql } from "@optimitron/db";
-import { convertTrackingValue, normalizeTrackingMeasurement } from "./units";
+import {
+  convertTrackingValue,
+  normalizeTrackingMeasurement,
+  setTrackingUnitConversion,
+} from "./units";
+import type { TrackingUnitConversion } from "./units";
 import {
   CombinationOperation,
   FillingType,
@@ -39,8 +44,10 @@ let trackingPrismaProvider: (() => Promise<TrackingPrismaClient>) | null = null;
  */
 export function setTrackingPrismaProvider(
   provider: () => Promise<TrackingPrismaClient>,
+  unitConversion: TrackingUnitConversion,
 ) {
   trackingPrismaProvider = provider;
+  setTrackingUnitConversion(unitConversion);
 }
 
 async function getPrisma(): Promise<TrackingPrismaClient> {
@@ -600,17 +607,24 @@ async function lockReminderUnits(
   `);
 }
 
-/** Keep every amount that inherits the personal unit in the same physical quantity. */
-async function changeTrackingUnitPreference(
+async function lockNOf1TrackingUnits(
   tx: TrackingDbClient,
   nOf1VariableId: string,
-  unit: TrackingUnitSummary,
 ) {
   await tx.$queryRaw(PrismaSql.sql`
     SELECT pg_advisory_xact_lock(hashtextextended(
       'tracking-units:' || "subjectId" || ':' || "globalVariableId", 0
     ))::text FROM "NOf1Variable" WHERE "id" = ${nOf1VariableId}
   `);
+}
+
+/** Keep every amount that inherits the personal unit in the same physical quantity. */
+async function changeTrackingUnitPreference(
+  tx: TrackingDbClient,
+  nOf1VariableId: string,
+  unit: TrackingUnitSummary,
+) {
+  await lockNOf1TrackingUnits(tx, nOf1VariableId);
   const existing = await tx.nOf1Variable.findUniqueOrThrow({
     where: { id: nOf1VariableId },
     include: {
@@ -618,10 +632,10 @@ async function changeTrackingUnitPreference(
       globalVariable: { include: { defaultUnit: true } },
     },
   });
-  convertTrackingValue(1, unit, existing.globalVariable.defaultUnit);
   const previousUnit =
     existing.defaultUnit ?? existing.globalVariable.defaultUnit;
   if (previousUnit.id === unit.id) return existing;
+  convertTrackingValue(1, unit, existing.globalVariable.defaultUnit);
   const convert = (value: number | null) =>
     value === null ? null : convertTrackingValue(value, previousUnit, unit);
   const settings = {
@@ -634,31 +648,27 @@ async function changeTrackingUnitPreference(
     where: { nOf1VariableId },
     select: { id: true, defaultValue: true },
   });
-  const notifications = await tx.trackingReminderNotification.findMany({
+  const receipt = await tx.trackingReminderNotification.findFirst({
     where: {
       trackingReminder: { nOf1VariableId },
       trackedValue: { not: null },
     },
-    select: { id: true, trackedValue: true },
+    select: { id: true },
   });
+  if (receipt) {
+    throw new Error(
+      "Cannot safely change the preferred unit: reminder receipts have no unit metadata. Record or correct individual measurements with an explicit unit instead.",
+    );
+  }
   // Validate all conversions before the first amount update. The caller owns the transaction.
   const reminderChanges = reminders.map((row) => ({
     id: row.id,
     value: convert(row.defaultValue),
   }));
-  const notificationChanges = notifications.map((row) => ({
-    id: row.id,
-    value: convert(row.trackedValue),
-  }));
   for (const row of reminderChanges)
     await tx.trackingReminder.update({
       where: { id: row.id },
       data: { defaultValue: row.value },
-    });
-  for (const row of notificationChanges)
-    await tx.trackingReminderNotification.update({
-      where: { id: row.id },
-      data: { trackedValue: row.value },
     });
   return tx.nOf1Variable.update({
     where: { id: nOf1VariableId },
@@ -1440,6 +1450,7 @@ export async function updateTrackingVariableSettingsForUser(
         `Multiple variables match "${variableName}" case-insensitively. Use globalVariableId to disambiguate.`,
       );
     }
+    await lockNOf1TrackingUnits(tx, existing.id);
     if (hasUnitInput) {
       const unit = await resolveTrackingUnit(tx, unitInput);
       if (!unit) throw new Error("Requested unit was not found.");

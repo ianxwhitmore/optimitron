@@ -1,10 +1,17 @@
-import {
-  convertUnit,
-  getUnitDefinition,
-} from "@optimitron/data/unit-conversion";
 import type { Unit } from "@optimitron/db";
 
 export type TrackingUnit = Pick<Unit, "id" | "abbreviatedName">;
+
+export interface TrackingUnitConversion {
+  convertUnit: (value: number, from: string, to: string) => number;
+  getUnitDefinition: (unit: string) => { category: string } | undefined;
+}
+
+let unitConversion: TrackingUnitConversion | null = null;
+
+export function setTrackingUnitConversion(provider: TrackingUnitConversion) {
+  unitConversion = provider;
+}
 
 /** Counts and ordinal scales need variable-specific meaning, not just a shared category. */
 export function convertTrackingValue(
@@ -15,8 +22,10 @@ export function convertTrackingValue(
   if (!Number.isFinite(value))
     throw new Error("Measurement value must be finite.");
   if (from.id === to.id) return value;
-  const source = getUnitDefinition(from.abbreviatedName);
-  const target = getUnitDefinition(to.abbreviatedName);
+  if (!unitConversion)
+    throw new Error("The host must configure tracking unit conversion.");
+  const source = unitConversion.getUnitDefinition(from.abbreviatedName);
+  const target = unitConversion.getUnitDefinition(to.abbreviatedName);
   if (
     !source ||
     source.category !== target?.category ||
@@ -27,7 +36,7 @@ export function convertTrackingValue(
       `Cannot convert ${from.abbreviatedName} to ${to.abbreviatedName}. Use a compatible unit; counts, concentrations, and rating scales need an explicit conversion definition.`,
     );
   }
-  const converted = convertUnit(
+  const converted = unitConversion.convertUnit(
     value,
     from.abbreviatedName,
     to.abbreviatedName,

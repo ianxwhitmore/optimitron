@@ -3327,9 +3327,6 @@ importers:
 
   packages/tracking:
     dependencies:
-      '@optimitron/data':
-        specifier: workspace:*
-        version: link:../data
       '@optimitron/db':
         specifier: workspace:^
         version: link:../db

@@ -1,6 +1,16 @@
 import "./load-env";
+import {
+  convertUnit,
+  getUnitDefinition,
+} from "@optimitron/data/unit-conversion";
+import { setTrackingPrismaProvider } from "@optimitron/tracking";
 import { normalizeMeasurements } from "@optimitron/tracking/normalize-measurements";
 import { prisma } from "../src/lib/prisma";
+
+setTrackingPrismaProvider(async () => prisma, {
+  convertUnit,
+  getUnitDefinition,
+});
 
 const args = process.argv.slice(2);
 if (args.some((arg) => arg !== "--apply" && !arg.startsWith("--variable="))) {
