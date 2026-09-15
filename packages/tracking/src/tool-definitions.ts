@@ -15,7 +15,7 @@ export const TRACKING_TOOL_DEFINITIONS = [
   {
     name: RECORD_MEASUREMENT_TOOL_NAME,
     description:
-      "Record a personal dFDA/N-of-1 measurement such as a medication dose, food, symptom, mood, sleep, activity, lab, or vital sign. Use variableName plus category/unit for new variables, or globalVariableId for an existing variable.",
+      "Record a personal dFDA/N-of-1 measurement such as a medication dose, food, symptom, mood, sleep, activity, lab, or vital sign. Use variableName plus category/unit for new variables, or globalVariableId for an existing variable. Pass value in the supplied unit, or your personal default when omitted. The server preserves the entered value and converts it to the canonical unit. One-time unit choices do not change personal defaults.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -90,16 +90,25 @@ export const TRACKING_TOOL_DEFINITIONS = [
   {
     name: UPDATE_MEASUREMENT_TOOL_NAME,
     description:
-      "Correct one of the authenticated user's measurements by ID. Use listMeasurements to get the ID. Pass value in the normalized unit. If the measurement was converted between units, also pass originalValue in its original unit. Units and variable identity stay unchanged. Optional metadata fields patch the existing row. The tool rejects measurements owned by another user and refreshes cached summaries.",
+      "Correct one of the authenticated user's measurements by ID. Use listMeasurements to get the ID. Pass value with unitAbbreviation, unitName, or unitId to correct the entered amount and unit. The server converts it to the canonical unit and keeps the corrected input in originalValue and originalUnit. Without unit fields, value uses the existing stored unit; the server derives originalValue. Optional originalValue must match the converted value. Variable identity, timestamp, and personal defaults stay unchanged. Optional metadata fields patch the existing row. The tool rejects measurements owned by another user and refreshes cached summaries.",
     inputSchema: {
       type: "object" as const,
       properties: {
         measurementId: { type: "string" },
         value: { type: "number" },
+        unitId: { type: "string" },
+        unitAbbreviation: {
+          type: "string",
+          description: "Unit of the corrected value, such as mg or g.",
+        },
+        unitName: {
+          type: "string",
+          description: "Full unit name; matched case-insensitively.",
+        },
         originalValue: {
           type: "number",
           description:
-            "Corrected value in the existing original unit. Required when originalUnitId differs from unitId; otherwise defaults to value.",
+            "Optional corrected value in the existing original unit. The server validates it against value. Omit this field when you supply unit fields.",
         },
         duration: {
           type: ["number", "null"],
@@ -128,7 +137,7 @@ export const TRACKING_TOOL_DEFINITIONS = [
   {
     name: "upsertTrackingReminder",
     description:
-      "Create or edit a personal tracking reminder for medications, food, symptoms, mood, sleep, activity, labs, or vitals. When creating a new variable, pass categoryName; Food defaults to servings. To edit a reminder in place, pass trackingReminderId plus only the fields to change. Omit trackingReminderId to create or idempotently update the reminder identified by variable, start time, and frequency. Unit fields set your personal recording unit for the variable; the canonical variable default is unchanged. The response's top-level unit is the unit answers record in. The reminder can later be answered as TRACKED (value 0 for a not-taken day) or SNOOZED.",
+      "Create or edit a personal tracking reminder for medications, food, symptoms, mood, sleep, activity, labs, or vitals. When creating a new variable, pass categoryName; Food defaults to servings. To edit a reminder in place, pass trackingReminderId plus only the fields to change. Omit trackingReminderId to create or idempotently update the reminder identified by variable, start time, and frequency. Unit fields set your personal recording unit for the variable; the canonical variable default is unchanged. Existing reminder amounts and personal limits convert with the preference. A supplied defaultValue uses the new unit. The response's top-level unit is the unit answers record in. The reminder can later be answered as TRACKED (value 0 for a not-taken day) or SNOOZED.",
     inputSchema: {
       type: "object" as const,
       anyOf: [

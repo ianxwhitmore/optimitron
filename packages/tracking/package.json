@@ -17,7 +17,8 @@
     "./types": "./src/types.ts",
     "./time-zone": "./src/time-zone.ts",
     "./subject": "./src/subject.ts",
-    "./measurement-summaries": "./src/measurement-summaries.ts"
+    "./measurement-summaries": "./src/measurement-summaries.ts",
+    "./normalize-measurements": "./src/normalize-measurements.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -26,7 +27,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@optimitron/db": "workspace:^"
+    "@optimitron/db": "workspace:^",
+    "@optimitron/data": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.19.32",
