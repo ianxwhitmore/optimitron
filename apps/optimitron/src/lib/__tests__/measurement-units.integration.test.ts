@@ -308,6 +308,20 @@ describe("measurement units through MCP and PostgreSQL", () => {
     });
   });
 
+  it("preserves the converted preset when a unit-only edit identifies the reminder by its schedule", async () => {
+    const r = await reminder();
+    const updated = await call("upsertTrackingReminder", {
+      globalVariableId: VARIABLE,
+      reminderStartTime: "08:00",
+      unitAbbreviation: "g",
+    });
+    expect(updated.result.reminder).toMatchObject({
+      id: r.id,
+      defaultValue: 0.15,
+    });
+    expect(updated.result.unit.id).toBe(grams);
+  });
+
   it("applies an explicitly replaced preset in the new unit and keeps REST preference edits consistent", async () => {
     const r = await reminder();
     await call("upsertTrackingReminder", {

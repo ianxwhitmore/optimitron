@@ -1133,8 +1133,7 @@ export async function upsertTrackingReminderForUser(
       include: TRACKING_REMINDER_INCLUDE,
       update: {
         active: typeof input.active === "boolean" ? input.active : true,
-        defaultValue:
-          parseOptionalFiniteNumberInput(input, "defaultValue") ?? null,
+        defaultValue: parseOptionalFiniteNumberInput(input, "defaultValue"),
         deletedAt: null,
         instructions: optionalString(input.instructions),
         nOf1VariableId: nOf1Variable.id,
