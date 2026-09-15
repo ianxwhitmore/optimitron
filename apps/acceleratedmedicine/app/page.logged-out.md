@@ -4,10 +4,10 @@
 
 - Page title: Right to Trial Initiative
 - Meta description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
-- Canonical: https://acceleratedmedicine.org
+- Canonical: http://localhost:3016
 - Open Graph title: Right to Trial Initiative
 - Open Graph description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
-- Open Graph image: https://acceleratedmedicine.org/assets/acceleratedmedicine/iam-og-1200x630.png
+- Open Graph image: http://localhost:3016/assets/acceleratedmedicine/iam-og-1200x630.png
 - Twitter title: Right to Trial Initiative
 - Twitter description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
 
@@ -15,20 +15,25 @@
 
 - [ACCELERATED MEDICINE](/)
 - [Go to Dashboard](/dashboard)
+## TAKE OUR BRIEF SURVEY
 - QUESTION 1 OF 3
-## Should patients have the right to join a pragmatic clinical trial for a promising treatment through their physician?
+### Should patients have the right to join a pragmatic clinical trial for a promising treatment through their physician?
 - Pragmatic trials compare treatments during routine care. Participation remains voluntary and requires informed consent and appropriate safety oversight.
 - YES
 - NOT SURE
 - NO
+- OUR INITIATIVES:
+- [RIGHT TO TRIAL INITIATIVE](#right-to-trial)
+- [1% TREATY](https://warondisease.org)
+- [WISHOCRACY](https://wishocracy.org)
+- [CHECK OUT OUR PODCAST](https://www.youtube.com/@WarOnDisease/podcasts)
+- [DECENTRALIZEDFDA](https://dfda.earth)
 - THE RIGHT TO TRIAL
 ### WE CAN ERADICATE DISEASE.
-- Give every patient the right to join a clinical trial for the most promising treatments—with a clinician, at a licensed treatment center, wherever they live. Every patient gets more options. Every result helps us find what works.
+- Give every patient the right to join a clinical trial for the most promising treatments - with a clinician, at a licensed treatment center, wherever they live. Every patient gets more options. Every result helps us find what works.
 - [SEE HOW MONTANA DID IT](/montana)
 - [BRING IT TO MY STATE](#state-support)
 - HOW MONTANA IS ACCELERATING CLINICAL DISCOVERY
-- SB 535
-- Montana removed the terminal-illness restriction, licensed experimental treatment centers, and required outcome monitoring. Patients and providers now have a practical path to more treatment options.
 ### PATIENTS CAN REACH TREATMENTS. PROVIDERS CAN DELIVER THEM.
 - Montana removed the terminal-illness restriction in 2023. In 2025, SB 535 created licensed experimental treatment centers, direct provider-patient payment agreements, outcome monitoring, adverse event reporting, and an access requirement funded by 2% of each center's net annual profits.
 - 2015
@@ -81,7 +86,7 @@
 - [SEE HOW MUCH FASTER](/impact)
 - [READ THE IMPACT PAPER](https://rtt-impact.acceleratedmedicine.org/)
 ### MONTANA PROVED IT. PUT YOUR STATE ON THE MAP.
-- Montana is the enacted precedent. The original Right to Try spread from one state in 2014 to 41 states by 2018 — tap your state to see what Right to Trial would mean there, then add your voice.
+- Montana is the enacted precedent. The original Right to Try spread from one state in 2014 to 41 states by 2018 - tap your state to see what Right to Trial would mean there, then add your voice.
 - ENACTED PRECEDENT
 - LISTENING
 - [AK](/states/alaska)
@@ -276,7 +281,7 @@
 - Compare with standard of care treatments
 - Read about experiences from patients like you
 - Klotho-Increasing Gene Therapy
-- Illustrative demo data — hypothetical future therapy
+- Illustrative demo data - hypothetical future therapy
 - Cognitive Function (ADAS-Cog)
 - +28%
 - Memory Recall
