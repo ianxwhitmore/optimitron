@@ -113,6 +113,7 @@ export const ROUTES = {
   completeSignup: '/auth/complete-signup',
 
   // Admin
+  admin: '/admin',
   adminOrganizations: '/admin/organizations',
   adminUsers: '/admin/users',
 

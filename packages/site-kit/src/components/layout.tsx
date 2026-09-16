@@ -49,7 +49,8 @@ export function Layout({ children }: LayoutProps) {
   const isAuthenticated = status === "authenticated";
   // Cast: apps and site-kit can resolve different next-auth copies, so module
   // augmentation on Session.user is not reliable across the monorepo boundary.
-  const isAdmin = (session?.user as SessionUser | undefined)?.isAdmin || false;
+  const isAdmin =
+    isAuthenticated && (session?.user as SessionUser | undefined)?.isAdmin === true;
 
   const handleHashLinkClick = (e: React.MouseEvent<Element>, path: string) => {
     setOpen(false);
@@ -258,7 +259,7 @@ export function Layout({ children }: LayoutProps) {
                   {/* Admin Link (only for admins) */}
                   {isAdmin && (
                     <Link
-                      href={ROUTES.adminOrganizations}
+                      href={ROUTES.admin}
                       className="text-2xl font-black uppercase hover:text-brutal-pink transition-colors border-b-4 border-primary pb-2"
                       onClick={() => setOpen(false)}
                     >

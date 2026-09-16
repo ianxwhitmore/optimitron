@@ -212,6 +212,16 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        const currentUser =
+          typeof token.id === "string"
+            ? await prisma.user.findFirst({
+                where: { id: token.id, deletedAt: null },
+                select: { isAdmin: true },
+              })
+            : null;
+        // Read current permissions, including for sessions issued before this
+        // flag existed. A revoked role must not survive in the navigation.
+        session.user.isAdmin = currentUser?.isAdmin === true;
         session.user.personhoodProvider =
           (token.personhoodProvider as typeof session.user.personhoodProvider) ?? null;
         session.user.personhoodVerificationLevel =

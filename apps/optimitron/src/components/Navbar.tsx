@@ -19,6 +19,7 @@ import { getSiteVariantUiConfig, type SiteNavConfig } from "@/config/site-varian
 import { getPersonHref } from "@/lib/person-href";
 import {
   ROUTES,
+  adminLink,
   collectionsLink,
   documentsLink,
   editProfileLink,
@@ -36,6 +37,7 @@ function getNavItemAriaLabel(item: NavItem): string {
 
 export function getAuthenticatedProfileLinks(
   publicProfileHref: string | null,
+  isAdmin = false,
 ): NavItem[] {
   const links = [documentsLink, collectionsLink, editProfileLink];
 
@@ -44,6 +46,10 @@ export function getAuthenticatedProfileLinks(
       ...publicProfileLink,
       href: publicProfileHref,
     });
+  }
+
+  if (isAdmin === true) {
+    links.push(adminLink);
   }
 
   return links;
@@ -99,8 +105,10 @@ export default function Navbar({ config = defaultNavConfig }: NavbarProps) {
   const publicProfileHref = user?.personId
     ? getPersonHref({ id: user.personId, handle: user.handle ?? null })
     : null;
-  const authenticatedProfileLinks =
-    getAuthenticatedProfileLinks(publicProfileHref);
+  const authenticatedProfileLinks = getAuthenticatedProfileLinks(
+    publicProfileHref,
+    isAuthenticated && user?.isAdmin === true,
+  );
   const quickAction = config.quickAction ?? null;
   const quickActionHref = quickAction
     ? isAuthenticated

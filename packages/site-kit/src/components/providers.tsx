@@ -1,6 +1,7 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { SessionContext, SessionProvider } from "next-auth/react";
+import { useContext } from "react";
 import type { Session } from "next-auth";
 
 interface ProvidersProps {
@@ -23,4 +24,11 @@ export function Providers({
       {children}
     </SessionProvider>
   );
+}
+
+/** Next.js can render the not-found page without the root layout. */
+export function SessionBoundary({ children }: { children: React.ReactNode }) {
+  const session = useContext(SessionContext);
+
+  return session ? children : <Providers session={null}>{children}</Providers>;
 }
