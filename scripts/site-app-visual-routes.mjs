@@ -130,6 +130,7 @@ function getAdminRoutes(appName) {
     ...page,
     captureSelector: '[role="dialog"]',
     covers: [...page.covers, "packages/site-kit/src/components/layout.tsx"],
+    expectAdmin: true,
     label: "Navigation menu — administrator",
     openMenu: true,
     routeName: "navigation-menu-admin",

@@ -279,6 +279,7 @@ async function captureScreenshots(appName, siteVariant, baseUrl) {
         captureRoute: async (
           {
             authenticated,
+            expectAdmin,
             expectNotFound,
             routeName,
             routePath,
@@ -348,6 +349,11 @@ async function captureScreenshots(appName, siteVariant, baseUrl) {
               await menuDialog
                 .getByRole("button", { name: "Log Out" })
                 .waitFor({ state: "visible" });
+              if (expectAdmin === true) {
+                const adminLink = menuDialog.locator('a[href="/admin"]');
+                await adminLink.waitFor({ state: "visible" });
+                await adminLink.scrollIntoViewIfNeeded();
+              }
               await forceAnimationsComplete(page);
             }
             if (openDialog) {
