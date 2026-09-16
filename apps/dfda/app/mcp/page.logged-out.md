@@ -4,7 +4,7 @@
 
 - Page title: dFDA MCP Server
 - Meta description: Connect an AI assistant to dFDA to record personal health measurements, review your history, and manage tracking reminders.
-- Canonical: https://dfda.earth/mcp
+- Canonical: https://warondisease.org
 - Open Graph title: dFDA
 - Open Graph description: A decentralized framework for drug assessment for ranking treatments by real-world effectiveness and outcome labels showing the positive and negative effects of every food and drug in the world.
 - Open Graph image: https://dfda.earth/assets/dfda/dfda-og-1200x630.png
