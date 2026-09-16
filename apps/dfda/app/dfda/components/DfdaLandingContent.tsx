@@ -60,10 +60,10 @@ export function DfdaLandingContent() {
               LET'S CREATE THE FDA OF THE FUTURE
             </h1>
             <p className="text-xl md:text-2xl font-bold mb-8 text-balance">
-              A decentralized framework that makes clinical trials{" "}
+              Universal pragmatic clinical trials could make clinical trials{" "}
               {costReductionFactor} cheaper,{" "}
               {(DRUG_DISCOVERY_TO_APPROVAL_YEARS.value / 2).toFixed(1)} years
-              faster, and saves millions of lives
+              faster, and save millions of lives
             </p>
 
             {/* Universal Search Box */}
