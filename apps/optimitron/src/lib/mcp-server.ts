@@ -1,3 +1,4 @@
+import { convertUnit, getUnitDefinition } from "@optimitron/data/unit-conversion";
 /**
  * Shared MCP Server factory for the Optimitron Task System.
  *
@@ -535,7 +536,7 @@ async function getPrisma() {
   return prisma;
 }
 
-setTrackingPrismaProvider(getPrisma);
+setTrackingPrismaProvider(getPrisma, { convertUnit, getUnitDefinition });
 
 // Personal-queue handlers need both the userId (creator filter) and the
 // linked Person id (assignee filter) so trigger-spawned tasks assigned to

@@ -1,3 +1,7 @@
+import {
+  convertUnit,
+  getUnitDefinition,
+} from "@optimitron/data/unit-conversion";
 /**
  * Wires @optimitron/tracking to this app's Prisma singleton. Import this
  * module (for its side effect) from every surface that calls tracking core
@@ -8,4 +12,7 @@ import { setTrackingPrismaProvider } from "@optimitron/tracking";
 
 import { prisma } from "@/lib/prisma";
 
-setTrackingPrismaProvider(async () => prisma);
+setTrackingPrismaProvider(async () => prisma, {
+  convertUnit,
+  getUnitDefinition,
+});
