@@ -23,8 +23,6 @@
 - [🎗️CANCER 21M affected · 200 trials](/conditions/breast-cancer)
 - [🫀HEART DISEASE 250M affected · 300 trials](/conditions/coronary-artery-disease)
 - [🫁ASTHMA 260M affected · 150 trials](/conditions/asthma)
-### FDAi: Let's Automate Clinical Research!
-- [Watch on Vimeo](https://vimeo.com/930843979) · 7:47
 ### THE PROBLEM: TRADITIONAL TRIALS ARE BROKEN
 #### TOO EXPENSIVE
 - Average cost: $2.6B per drug. 90% of that is wasted on bureaucracy, not science.
