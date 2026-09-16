@@ -14,6 +14,20 @@ function isVercelPreviewUrl(value) {
   }
 }
 
+// GitHub reports skipped Vercel builds as inactive even when their preview
+// URL points at a canceled deployment. Require an actual successful status.
+export function getSuccessfulVercelDeploymentStatus(statuses) {
+  const conclusive = statuses.find(
+    ({ state, description }) =>
+      ["success", "error", "failure"].includes(state) ||
+      (state === "inactive" && String(description || "").startsWith("Skipped")),
+  );
+  return conclusive?.state === "success" &&
+    /^https?:\/\//u.test(conclusive.environment_url || "")
+    ? conclusive
+    : null;
+}
+
 export function getVercelPreviewUrlsFromComment(
   body,
   targetAppNames = VERCEL_APP_PROJECTS.map(({ appName }) => appName),

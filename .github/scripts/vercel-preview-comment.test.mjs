@@ -2,9 +2,52 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getSuccessfulVercelDeploymentStatus,
   getVercelPreviewUrlsFromComment,
   mergeVercelPreviewUrls,
 } from "./vercel-preview-comment.mjs";
+
+test("rejects skipped deployments even when GitHub supplies a preview URL", () => {
+  assert.equal(
+    getSuccessfulVercelDeploymentStatus([
+      {
+        state: "inactive",
+        description: "Skipped - Not affected",
+        environment_url: "https://optimitron-canceled.vercel.app",
+      },
+    ]),
+    null,
+  );
+});
+
+test("keeps a successful preview after it is superseded", () => {
+  const success = {
+    state: "success",
+    environment_url: "https://optimitron-ready.vercel.app",
+  };
+  assert.equal(
+    getSuccessfulVercelDeploymentStatus([
+      { state: "inactive", description: "Deployment is no longer active" },
+      success,
+    ]),
+    success,
+  );
+});
+
+test("does not hide a newer failure behind an older success", () => {
+  assert.equal(
+    getSuccessfulVercelDeploymentStatus([
+      { state: "error", description: "Deployment failed" },
+      { state: "success", environment_url: "https://optimitron-old.vercel.app" },
+    ]),
+    null,
+  );
+});
+
+test("requires a successful status with a usable URL", () => {
+  assert.equal(getSuccessfulVercelDeploymentStatus([{ state: "pending" }]), null);
+  assert.equal(getSuccessfulVercelDeploymentStatus([{ state: "success" }]), null);
+});
 
 test("reads queued app preview aliases from the Vercel comment", () => {
   const body = `
