@@ -350,7 +350,7 @@ export const authenticatedSiteAppRoutes = Object.freeze({
 export const authenticatedSiteAppRouteExemptions = Object.freeze([
   {
     reason: "CureDAO has no local authentication; /admin redirects to the captured https://warondisease.org/admin hub.",
-    sourcePage: "apps/curedao/app/admin/page.tsx",
+    sourcePage: "apps/curedao/app/admin/page.ts",
   },
   {
     reason: "This page only redirects to the captured Wishocracy dashboard.",

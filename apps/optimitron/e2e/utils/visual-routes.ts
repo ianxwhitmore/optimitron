@@ -407,6 +407,15 @@ const VISUAL_PATH_OVERRIDE_BY_PATH = new Map<string, string>([
 
 const SPECIAL_STATE_ROUTES: VisualRouteSpec[] = [
   {
+    authenticated: true,
+    covers: ["apps/optimitron/src/app/admin/task-payouts/page.tsx"],
+    name: "admin-task-payouts",
+    path: "/admin/task-payouts",
+    required: true,
+    requiredSelector: "h1",
+    requiredText: /^Task payouts$/,
+  },
+  {
     covers: [FOUNDATIONS_PAGE_FILE],
     name: "foundations-links",
     path: ROUTES.foundations,
