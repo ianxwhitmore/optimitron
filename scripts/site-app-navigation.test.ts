@@ -49,6 +49,7 @@ function isAuthenticatedPage(filePath: string) {
 }
 
 test("every internal site-app navigation route has a Next.js page", async (t) => {
+  const { ROUTES } = await import("../packages/site-kit/src/lib/routes.ts");
   const { getInternalNavigationRoutesForVariant, VARIANTS } = await import(
     "../packages/site-kit/src/lib/site-config.ts"
   );
@@ -64,7 +65,8 @@ test("every internal site-app navigation route has a Next.js page", async (t) =>
 
   for (const [appName, siteVariant] of apps) {
     await t.test(appName, () => {
-      const routes = getInternalNavigationRoutesForVariant(siteVariant);
+      // The role-gated admin link is not part of the public navigation registry.
+      const routes = [...getInternalNavigationRoutesForVariant(siteVariant), { path: ROUTES.admin }];
       assert.ok(routes.length > 0, `${appName} must expose at least one route`);
 
       for (const route of routes) {

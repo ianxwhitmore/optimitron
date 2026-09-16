@@ -15,7 +15,7 @@
 
 - [DFDA](/)
 ## LET'S CREATE THE FDA OF THE FUTURE
-- A decentralized framework that makes clinical trials 82x cheaper, 7.0 years faster, and saves millions of lives
+- Universal pragmatic clinical trials could make clinical trials 82x cheaper, 7.0 years faster, and save millions of lives
 - EXPLORE CONDITIONS:
 - [😞DEPRESSION 332M affected · 10,000 trials](/conditions/depression)
 - [🩺DIABETES 506M affected · 300 trials](/conditions/diabetes-mellitus-type-2)

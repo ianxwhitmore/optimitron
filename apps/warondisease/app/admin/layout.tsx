@@ -1,5 +1,4 @@
-import { requireAdmin } from "@/lib/auth-utils"
-import { redirect } from "next/navigation"
+import { requireAdminPage } from "@optimitron/site-kit/lib/admin-access"
 import Layout from "@/components/layout"
 import Link from "next/link"
 import { ROUTES } from '@/lib/routes'
@@ -9,13 +8,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Require admin access
-  try {
-    await requireAdmin()
-  } catch {
-    // Redirect non-admins to home page
-    redirect("/")
-  }
+  await requireAdminPage()
 
   return (
     <Layout>

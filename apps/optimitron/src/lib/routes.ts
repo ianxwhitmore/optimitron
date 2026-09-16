@@ -152,6 +152,7 @@ export const ROUTES = {
   census: "/census",
   checkIn: "/check-in",
   settings: "/settings",
+  admin: "/admin",
   transmit: "/transmit",
   // Futures
   wishonia: "/wishonia",
@@ -661,6 +662,17 @@ export const settingsLink: NavItem = {
   authenticatedCopyPreview: true,
   authenticatedScreenshot: true,
   cta: "Open Settings",
+};
+
+export const adminLink: NavItem = {
+  href: ROUTES.admin,
+  label: "Admin",
+  emoji: "",
+  description:
+    "Organization reviews, referendum positions, communications, and task payouts.",
+  cta: "Open Admin",
+  authenticatedCopyPreview: true,
+  authenticatedScreenshot: true,
 };
 
 export const inviteVoterLink: NavItem = {
@@ -1909,6 +1921,7 @@ export interface RouteReviewSpec {
 }
 
 export const routeReviewNavItems = [
+  adminLink,
   homeLink,
   prizeLink,
   gameLink,

@@ -60,10 +60,10 @@ export function DfdaLandingContent() {
               LET'S CREATE THE FDA OF THE FUTURE
             </h1>
             <p className="text-xl md:text-2xl font-bold mb-8 text-balance">
-              A decentralized framework that makes clinical trials{" "}
+              Universal pragmatic clinical trials could make clinical trials{" "}
               {costReductionFactor} cheaper,{" "}
               {(DRUG_DISCOVERY_TO_APPROVAL_YEARS.value / 2).toFixed(1)} years
-              faster, and saves millions of lives
+              faster, and save millions of lives
             </p>
 
             {/* Universal Search Box */}
@@ -73,6 +73,26 @@ export function DfdaLandingContent() {
 
             {/* Featured Conditions */}
             <FeaturedConditions />
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="fdai"
+        aria-label="FDAi video"
+        className="scroll-mt-20 py-16 border-b-4 border-primary"
+      >
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="aspect-video border-4 border-primary bg-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <video
+              src="https://static.warondisease.org/assets/videos/fdai-automate-clinical-research-930843979.mp4"
+              poster="https://static.warondisease.org/assets/videos/fdai-automate-clinical-research-930843979-poster.jpg"
+              aria-label="FDAi - Let's Automate Clinical Research!"
+              className="block h-full w-full"
+              controls
+              preload="none"
+              playsInline
+            />
           </div>
         </div>
       </section>

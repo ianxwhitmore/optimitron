@@ -125,6 +125,7 @@ describe("campaign page index", () => {
   // surface, the search page itself, and the donate page while donate links are
   // hidden (SHOW_DONATE_LINKS in site-kit).
   const EXCLUDED = new Set([
+    "/admin",
     "/dashboard",
     "/search",
     ...(SHOW_DONATE_LINKS ? [] : ["/donate"]),

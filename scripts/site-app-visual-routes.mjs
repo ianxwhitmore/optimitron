@@ -108,8 +108,38 @@ function getAuthenticatedMenuRoute(appName) {
   };
 }
 
+function getAdminRoutes(appName) {
+  const sourcePage = `apps/${appName}/app/admin/page.tsx`;
+  const page = {
+    authenticated: true,
+    authRole: "admin",
+    covers: [
+      sourcePage,
+      `apps/${appName}/app/admin/layout.tsx`,
+      "packages/site-kit/src/components/admin/admin-page.tsx",
+      "packages/site-kit/src/components/admin/admin-layout.tsx",
+      "packages/site-kit/src/components/admin/admin-home.tsx",
+      "packages/site-kit/src/lib/admin-access.ts",
+    ],
+    label: "Admin tools",
+    routeName: "admin-authenticated",
+    routePath: "/admin",
+    sourcePage,
+  };
+  return [page, {
+    ...page,
+    captureSelector: '[role="dialog"]',
+    covers: [...page.covers, "packages/site-kit/src/components/layout.tsx"],
+    expectAdmin: true,
+    label: "Navigation menu — administrator",
+    openMenu: true,
+    routeName: "navigation-menu-admin",
+  }];
+}
+
 export const authenticatedSiteAppRoutes = Object.freeze({
   warondisease: [
+    ...getAdminRoutes("warondisease"),
     {
       authenticated: true,
       authRole: "user",
@@ -223,6 +253,7 @@ export const authenticatedSiteAppRoutes = Object.freeze({
     },
   ],
   wishocracy: [
+    ...getAdminRoutes("wishocracy"),
     getAuthenticatedMenuRoute("wishocracy"),
     {
       authenticated: true,
@@ -240,6 +271,7 @@ export const authenticatedSiteAppRoutes = Object.freeze({
     },
   ],
   trialabundancesurvey: [
+    ...getAdminRoutes("trialabundancesurvey"),
     getAuthenticatedMenuRoute("trialabundancesurvey"),
     {
       authenticated: true,
@@ -270,6 +302,8 @@ export const authenticatedSiteAppRoutes = Object.freeze({
     },
   ],
   acceleratedmedicine: [
+    ...getAdminRoutes("acceleratedmedicine"),
+    getAuthenticatedMenuRoute("acceleratedmedicine"),
     {
       authenticated: true,
       authRole: "user",
@@ -285,6 +319,7 @@ export const authenticatedSiteAppRoutes = Object.freeze({
     },
   ],
   courtofhumanity: [
+    ...getAdminRoutes("courtofhumanity"),
     getAuthenticatedMenuRoute("courtofhumanity"),
     {
       authenticated: true,
@@ -309,9 +344,14 @@ export const authenticatedSiteAppRoutes = Object.freeze({
       sourcePage: "apps/courtofhumanity/app/plaintiffs/manage/page.tsx",
     },
   ],
+  dfda: getAdminRoutes("dfda"),
 });
 
 export const authenticatedSiteAppRouteExemptions = Object.freeze([
+  {
+    reason: "CureDAO has no local authentication; /admin redirects to the captured https://warondisease.org/admin hub.",
+    sourcePage: "apps/curedao/app/admin/page.ts",
+  },
   {
     reason: "This page only redirects to the captured Wishocracy dashboard.",
     sourcePage: "apps/wishocracy/app/dashboard/settings/page.tsx",
@@ -808,7 +848,11 @@ export const publicSiteAppRoutes = Object.freeze({
       sourcePage: "apps/acceleratedmedicine/app/donate/success/page.tsx",
     },
     {
-      covers: ["apps/acceleratedmedicine/app/not-found.tsx"],
+      covers: [
+        "apps/acceleratedmedicine/app/not-found.tsx",
+        "packages/site-kit/src/components/not-found.tsx",
+        "packages/site-kit/src/components/providers.tsx",
+      ],
       expectNotFound: true,
       label: "Page not found",
       routeName: "not-found",
@@ -970,6 +1014,13 @@ export function getSiteAppScreenshotRoutes(appName, siteVariant) {
         ...dfdaHowItWorksFiles,
       ];
     }
+    routes.push({
+      label: "FDAi video",
+      routeName: "fdai-video",
+      routePath: "/#fdai",
+      captureSelector: "#fdai",
+      covers: ["apps/dfda/app/dfda/components/DfdaLandingContent.tsx"],
+    });
   }
 
   if (siteVariant === VARIANTS.ACCELERATED_MEDICINE) {

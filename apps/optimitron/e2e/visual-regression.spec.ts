@@ -216,6 +216,7 @@ test.describe("route visual regression", () => {
       }
       if ("openMenu" in route && route.openMenu) {
         await openSideMenu(page, {
+          expectAdmin: route.expectAdmin,
           expectSettings: "expectSettings" in route && route.expectSettings,
         });
       }
@@ -584,7 +585,10 @@ async function waitForAvatarFallbacksToSettle(page: Page) {
 
 async function openSideMenu(
   page: Page,
-  { expectSettings = false }: { expectSettings?: boolean } = {},
+  {
+    expectAdmin,
+    expectSettings = false,
+  }: { expectAdmin?: boolean; expectSettings?: boolean } = {},
 ) {
   const trigger = page.getByRole("button", { name: "Open menu" });
   const dialog = page.getByRole("dialog");
@@ -615,6 +619,12 @@ async function openSideMenu(
     await expect(dialog.getByRole("link", { name: /Settings/i })).toBeVisible();
   } else {
     await expect(dialog.getByRole("link", { name: /Sign In/i })).toBeVisible();
+  }
+  const adminLink = dialog.locator('a[href="/admin"]');
+  if (expectAdmin === true) {
+    await expect(adminLink).toBeVisible();
+  } else if (expectAdmin === false) {
+    await expect(adminLink).toHaveCount(0);
   }
   await forceAnimationsComplete(page);
   await waitForPaint(page);

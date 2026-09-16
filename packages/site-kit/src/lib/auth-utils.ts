@@ -37,7 +37,7 @@ export async function getCurrentUser() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session.user.id, deletedAt: null },
     include: {
       person: {
         select: {

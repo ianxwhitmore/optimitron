@@ -235,7 +235,7 @@ export default async function AdminTaskPayoutsPage() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session.user.id, deletedAt: null },
     select: { isAdmin: true },
   });
   if (!user?.isAdmin) {
