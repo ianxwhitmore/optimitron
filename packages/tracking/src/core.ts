@@ -1699,6 +1699,8 @@ export function toCompactTrackingNotifications(result: {
     notifyAt: Date;
     notifyAtLocal: string;
     reminderId: string;
+    canRespond?: false;
+    responseUnavailableReason?: string;
     sameDayMeasurementCount?: number;
     unit?: string | null;
   }>;
@@ -1723,6 +1725,12 @@ export function toCompactTrackingNotifications(result: {
       fillingType: notification.fillingType ?? null,
       id: notification.reminderId,
       name: notification.globalVariable.name,
+      ...(notification.responseUnavailableReason
+        ? {
+            canRespond: false,
+            responseUnavailableReason: notification.responseUnavailableReason,
+          }
+        : {}),
       ...(notification.sameDayMeasurementCount
         ? { sameDayMeasurementCount: notification.sameDayMeasurementCount }
         : {}),
@@ -1758,6 +1766,14 @@ function storedTrackingNotificationToQueueItem(
   const reminder = notification.trackingReminder;
   const notifyAt = notification.notifyAt;
   const dateKey = getZonedDateKey(notifyAt, timeZone);
+  const range = dayRange(dateKey, timeZone);
+  const canRespond =
+    reminder.active &&
+    reminder.deletedAt === null &&
+    (!reminder.stopTrackingDate || reminder.stopTrackingDate >= range.start) &&
+    Boolean(
+      reminderOccurrenceWithinRange(reminder, { ...range, dateKey, timeZone }),
+    );
   const snoozeElapsed =
     notification.status === NotificationStatus.SNOOZED &&
     notifyAt.getTime() <= Date.now();
@@ -1791,6 +1807,13 @@ function storedTrackingNotificationToQueueItem(
     reminderEndTime: reminder.reminderEndTime,
     reminderFrequency: reminder.reminderFrequency,
     reminderId: reminder.id,
+    ...(!canRespond
+      ? {
+          canRespond: false as const,
+          responseUnavailableReason:
+            "This reminder is inactive or no longer scheduled on this date. Review its schedule before attempting a response.",
+        }
+      : {}),
     reminderStartTime: reminder.reminderStartTime,
     // A current schedule cannot reconstruct the historical scheduled instant
     // after the reminder was edited. Keep it null instead of inventing one.

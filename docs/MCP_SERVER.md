@@ -508,6 +508,9 @@ outstanding notifications, newest first. It also generates schedule occurrences
 for the last 14 local days. The `backlog` object discloses this generation window;
 use an explicit date range to inspect earlier schedules that have no stored
 notification. Explicit date and range queries retain their existing scope.
+Stored rows whose reminder is inactive or no longer scheduled on that date carry
+`canRespond: false` and `responseUnavailableReason`; inspect the schedule before
+attempting to answer them.
 
 Use `respondToTrackingReminderNotifications` for notification answers, corrections,
 and snoozes. `recordMeasurement` is for ad hoc entries and does not answer a

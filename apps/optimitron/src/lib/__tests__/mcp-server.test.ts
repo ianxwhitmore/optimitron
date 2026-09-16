@@ -10578,6 +10578,57 @@ describe("MCP server tool dispatch", () => {
       }
     });
 
+    it.each([
+      { active: false },
+      { stopTrackingDate: new Date("2026-07-01T00:00:00Z") },
+      { startTrackingDate: new Date("2026-07-03T00:00:00Z") },
+    ])(
+      "flags a stored backlog row that the current schedule cannot answer: %j",
+      async (scheduleChange) => {
+        vi.useFakeTimers({
+          now: new Date("2026-08-20T15:00:00Z"),
+          toFake: ["Date"],
+        });
+        try {
+          mocks.userFindUnique.mockResolvedValue({ timeZone: "UTC" });
+          mocks.trackingReminderFindMany.mockResolvedValue([]);
+          mocks.trackingReminderNotificationFindMany.mockResolvedValue([
+            {
+              id: "old-notification",
+              userId: "user-1",
+              trackingReminderId: "reminder-1",
+              notifyAt: new Date("2026-07-02T13:00:00Z"),
+              status: "PENDING",
+              trackedValue: null,
+              trackingReminder: {
+                ...EXISTING_TRACKING_REMINDER,
+                ...scheduleChange,
+              },
+            },
+          ]);
+          const client = await setup("user-1", ALL_SCOPES);
+          const result = await client.callTool({
+            name: "listTrackingReminderNotifications",
+            arguments: { status: "OVERDUE" },
+          });
+          expect(result.isError).toBeFalsy();
+          expect(parseToolBody(result)).toMatchObject({
+            notifications: [
+              {
+                dateKey: "2026-07-02",
+                canRespond: false,
+                responseUnavailableReason: expect.stringContaining(
+                  "Review its schedule",
+                ),
+              },
+            ],
+          });
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
+
     it("filters an inclusive notification range by reminder and overdue status", async () => {
       const now = vi
         .spyOn(Date, "now")
