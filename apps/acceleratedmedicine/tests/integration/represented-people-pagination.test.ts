@@ -1,9 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   CourtCasePartyRole,
   HUMANITY_V_GOVERNMENT_CASE_SLUG,
   PersonLifeStatus,
   SubjectType,
+  type PrismaClient,
 } from "@optimitron/db";
 import { DEMO_USER_EMAIL } from "@optimitron/data/campaign";
 import { prisma } from "@optimitron/site-kit/lib/prisma";
@@ -150,7 +151,19 @@ describe("public plaintiff recent pagination with PostgreSQL", () => {
   );
 
   it("hydrates at most one page across the photo boundary", async () => {
-    const query = vi.spyOn(prisma.courtCaseParty, "findMany");
+    const globalClient = globalThis as unknown as { prisma: PrismaClient };
+    const original = globalClient.prisma;
+    const limits: (number | undefined)[] = [];
+    globalClient.prisma = original.$extends({
+      query: {
+        courtCaseParty: {
+          findMany({ args, query }) {
+            limits.push(args.take);
+            return query(args);
+          },
+        },
+      },
+    }) as PrismaClient;
     try {
       const result = await getRepresentedPeopleGalleryData(undefined, {
         filters,
@@ -161,8 +174,7 @@ describe("public plaintiff recent pagination with PostgreSQL", () => {
         "photo-a",
         "empty",
       ]);
-      expect(query.mock.calls.length).toBeGreaterThan(0);
-      const limits = query.mock.calls.map(([args]) => args?.take);
+      expect(limits.length).toBeGreaterThan(0);
       expect(limits.every((take) => typeof take === "number" && take > 0)).toBe(
         true,
       );
@@ -170,7 +182,48 @@ describe("public plaintiff recent pagination with PostgreSQL", () => {
         limits.reduce((sum, take) => sum + (take ?? 0), 0),
       ).toBeLessThanOrEqual(2);
     } finally {
-      query.mockRestore();
+      globalClient.prisma = original;
+    }
+  });
+
+  it("keeps the page boundary stable when a photo changes after the count", async () => {
+    const globalClient = globalThis as unknown as { prisma: PrismaClient };
+    const original = globalClient.prisma;
+    let changed = false;
+    globalClient.prisma = original.$extends({
+      query: {
+        courtCaseParty: {
+          async count({ args, query }) {
+            const result = await query(args);
+            if (JSON.stringify(args).includes('"image":{"not":null}')) {
+              await original.person.update({
+                where: { id: prefix + "photo-a" },
+                data: { image: null },
+              });
+              changed = true;
+            }
+            return result;
+          },
+        },
+      },
+    }) as PrismaClient;
+    try {
+      const result = await getRepresentedPeopleGalleryData(undefined, {
+        filters,
+        page: 2,
+        pageSize: 2,
+      });
+      expect(changed).toBe(true);
+      expect(result?.people.map((person) => person.displayName)).toEqual([
+        "photo-a",
+        "empty",
+      ]);
+    } finally {
+      globalClient.prisma = original;
+      await original.person.update({
+        where: { id: prefix + "photo-a" },
+        data: { image: "https://example.invalid/z.jpg" },
+      });
     }
   });
 

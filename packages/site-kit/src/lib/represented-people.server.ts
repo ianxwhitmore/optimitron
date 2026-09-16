@@ -267,33 +267,43 @@ export async function getRepresentedPeopleGalleryData(
     const withoutPhoto = plaintiffPartyWhere({
       AND: [visiblePersonWhere, { OR: [{ image: null }, { image: "" }] }],
     });
-    const photoCount = await prisma.courtCaseParty.count({ where: withPhoto });
-    const photoTake = Math.min(pageSize, Math.max(0, photoCount - gallerySkip));
-    const recentOrder = [
-      { createdAt: "desc" as const },
-      { id: "desc" as const },
-    ];
-    const [photos, others] = await Promise.all([
-      photoTake > 0
-        ? prisma.courtCaseParty.findMany({
-            where: withPhoto,
-            orderBy: recentOrder,
-            skip: gallerySkip,
-            take: photoTake,
-            select: galleryPartySelect,
-          })
-        : [],
-      photoTake < pageSize
-        ? prisma.courtCaseParty.findMany({
-            where: withoutPhoto,
-            orderBy: recentOrder,
-            skip: Math.max(0, gallerySkip - photoCount),
-            take: pageSize - photoTake,
-            select: galleryPartySelect,
-          })
-        : [],
-    ]);
-    return [...photos, ...others];
+    // Keep the split boundary and both slices on one snapshot if photos or
+    // visibility change while this request is in flight.
+    return prisma.$transaction(
+      async (tx) => {
+        const photoCount = await tx.courtCaseParty.count({ where: withPhoto });
+        const photoTake = Math.min(
+          pageSize,
+          Math.max(0, photoCount - gallerySkip),
+        );
+        const recentOrder = [
+          { createdAt: "desc" as const },
+          { id: "desc" as const },
+        ];
+        const [photos, others] = await Promise.all([
+          photoTake > 0
+            ? tx.courtCaseParty.findMany({
+                where: withPhoto,
+                orderBy: recentOrder,
+                skip: gallerySkip,
+                take: photoTake,
+                select: galleryPartySelect,
+              })
+            : [],
+          photoTake < pageSize
+            ? tx.courtCaseParty.findMany({
+                where: withoutPhoto,
+                orderBy: recentOrder,
+                skip: Math.max(0, gallerySkip - photoCount),
+                take: pageSize - photoTake,
+                select: galleryPartySelect,
+              })
+            : [],
+        ]);
+        return [...photos, ...others];
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
   }
 
   const [
