@@ -3,6 +3,7 @@
 import { SessionContext, SessionProvider } from "next-auth/react";
 import { useContext } from "react";
 import type { Session } from "next-auth";
+import { getSiteConfig } from "../lib/site-config";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -30,5 +31,9 @@ export function Providers({
 export function SessionBoundary({ children }: { children: React.ReactNode }) {
   const session = useContext(SessionContext);
 
-  return session ? children : <Providers session={null}>{children}</Providers>;
+  return session ? children : (
+    <Providers authEnabled={getSiteConfig().authEnabled !== false}>
+      {children}
+    </Providers>
+  );
 }

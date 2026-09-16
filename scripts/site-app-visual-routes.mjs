@@ -1013,6 +1013,13 @@ export function getSiteAppScreenshotRoutes(appName, siteVariant) {
         ...dfdaHowItWorksFiles,
       ];
     }
+    routes.push({
+      label: "FDAi video",
+      routeName: "fdai-video",
+      routePath: "/#fdai",
+      captureSelector: "#fdai",
+      covers: ["apps/dfda/app/dfda/components/DfdaLandingContent.tsx"],
+    });
   }
 
   if (siteVariant === VARIANTS.ACCELERATED_MEDICINE) {

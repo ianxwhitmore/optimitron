@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const { userId } = await requireAuth();
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, deletedAt: null },
       select: { isAdmin: true },
     });
     if (!user?.isAdmin) {

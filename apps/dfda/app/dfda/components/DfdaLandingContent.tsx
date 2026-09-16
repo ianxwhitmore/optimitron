@@ -77,6 +77,43 @@ export function DfdaLandingContent() {
         </div>
       </section>
 
+      <section
+        id="fdai"
+        aria-labelledby="fdai-video-heading"
+        className="scroll-mt-20 py-16 border-b-4 border-primary"
+      >
+        <div className="max-w-4xl mx-auto px-4">
+          <h2
+            id="fdai-video-heading"
+            className="font-black text-3xl md:text-4xl mb-8 text-center"
+          >
+            FDAi: Let&apos;s Automate Clinical Research!
+          </h2>
+          <div className="aspect-video border-4 border-primary bg-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <video
+              src="https://static.warondisease.org/assets/videos/fdai-automate-clinical-research-930843979.mp4"
+              poster="https://static.warondisease.org/assets/videos/fdai-automate-clinical-research-930843979-poster.jpg"
+              aria-label="FDAi - Let's Automate Clinical Research!"
+              className="block h-full w-full"
+              controls
+              preload="none"
+              playsInline
+            />
+          </div>
+          <p className="mt-6 text-center font-bold">
+            <a
+              href="https://vimeo.com/930843979"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-4 hover:text-brutal-pink"
+            >
+              Watch on Vimeo
+            </a>{" "}
+            · 7:47
+          </p>
+        </div>
+      </section>
+
       {/* The Problem Section */}
       <section className="py-20 border-b-4 border-primary">
         <div className="container mx-auto px-4">

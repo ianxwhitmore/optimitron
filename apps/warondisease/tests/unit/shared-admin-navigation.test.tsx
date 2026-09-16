@@ -54,6 +54,26 @@ it("does not expose admin navigation while the session is loading", () => {
 })
 
 describe("fallback 404 session context", () => {
+  it("recovers a signed-in admin session when the root provider is absent", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_VARIANT", VARIANTS.ACCELERATED_MEDICINE)
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      new Response(JSON.stringify(url.includes("/api/auth/session") ? admin : { hasVoted: false })),
+    ))
+    render(<NotFoundPage />)
+    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }))
+    expect(await screen.findByRole("link", { name: /ADMIN/ })).toHaveAttribute("href", "/admin")
+  })
+
+  it("keeps the fallback signed out when local authentication is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_VARIANT", VARIANTS.CUREDAO)
+    const fetch = vi.fn(async (_url: string) => new Response(JSON.stringify({ hasVoted: false })))
+    vi.stubGlobal("fetch", fetch)
+    render(<NotFoundPage />)
+    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }))
+    expect(screen.queryByRole("link", { name: /ADMIN/ })).not.toBeInTheDocument()
+    expect(fetch.mock.calls.some(([url]) => String(url).includes("/api/auth/session"))).toBe(false)
+  })
+
   it("renders the real layout without a root SessionProvider", () => {
     render(<NotFoundPage />)
     expect(screen.getByRole("heading", { name: "Page not found" })).toBeInTheDocument()

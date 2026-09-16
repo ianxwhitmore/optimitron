@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     // Check admin status
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, deletedAt: null },
       select: { isAdmin: true },
     });
 

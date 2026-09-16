@@ -422,8 +422,8 @@ jobs:
           - app: dfda
             variant: dfda
             port: 4011
-            postgres_image: ""
-            requires_database: false
+            postgres_image: postgres:16
+            requires_database: true
           - app: wishocracy
             variant: wishocracy.org
             port: 4013
