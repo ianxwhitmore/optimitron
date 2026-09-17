@@ -4,7 +4,7 @@
 
 - Page title: dFDA MCP Server
 - Meta description: Connect an AI assistant to dFDA to record personal health measurements, review your history, and manage tracking reminders.
-- Canonical: https://warondisease.org
+- Canonical: https://dfda.earth/mcp
 - Open Graph title: dFDA
 - Open Graph description: A decentralized framework for drug assessment for ranking treatments by real-world effectiveness and outcome labels showing the positive and negative effects of every food and drug in the world.
 - Open Graph image: https://dfda.earth/assets/dfda/dfda-og-1200x630.png
@@ -19,9 +19,11 @@
 - [CONNECT YOUR AI](#connect)
 - [SEE WHAT IT CAN DO](#tools)
 - MCP SERVER URL
-- ```text
+
+```text
 https://dfda.earth/api/mcp
 ```
+
 - COPY SERVER URL
 - Choose Streamable HTTP or HTTP when your client asks for the transport. OAuth is discovered automatically.
 - START HERE
@@ -31,21 +33,26 @@ https://dfda.earth/api/mcp
 - 3 TRY ONE MEASUREMENT Ask: “Record that I slept 7.5 hours last night.” Your assistant should confirm what it saved.
 - CODEX
 #### ADD IT, THEN OPEN THE SIGN-IN FLOW.
-- ```text
+
+```text
 codex mcp add dfda --url https://dfda.earth/api/mcp
 codex mcp login dfda
 ```
+
 - COPY CODEX SETUP
 - CLAUDE CODE
 #### ONE COMMAND, THEN RUN /MCP.
-- ```text
+
+```text
 claude mcp add --transport http dfda https://dfda.earth/api/mcp
 ```
+
 - COPY CLAUDE CODE SETUP
 - CHATGPT, CLAUDE, CURSOR, AND OTHER MCP CLIENTS
 #### PASTE THE URL OR THIS CONFIG.
 - Add a custom MCP connector or app, choose OAuth, and paste the server URL. If the client asks for JSON, use this block.
-- ```text
+
+```text
 {
   "mcpServers": {
     "dfda": {
@@ -54,6 +61,7 @@ claude mcp add --transport http dfda https://dfda.earth/api/mcp
   }
 }
 ```
+
 - COPY MCP CONFIG
 - NO SECOND DFDA SIGNUP.
 - The authorization screen creates or signs in to the same account that stores your dFDA data. The server requests personal tracking access only. You can deny access or disconnect the MCP client at any time.
