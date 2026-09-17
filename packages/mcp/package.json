@@ -1,0 +1,17 @@
+{
+  "name": "@optimitron/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./resources": "./src/resources.ts",
+    "./auth": "./src/auth.ts",
+    "./audit": "./src/audit.ts",
+    "./results": "./src/results.ts"
+  },
+  "dependencies": {
+    "@optimitron/db": "workspace:^",
+    "jose": "^6.2.2"
+  }
+}

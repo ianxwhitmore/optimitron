@@ -19,6 +19,11 @@ import {
 } from "@/lib/mcp-scopes";
 import { prisma } from "@/lib/prisma";
 import { McpConsentForm } from "./consent-form";
+import {
+  resolveOAuthResource,
+  LEGACY_MCP_RESOURCE,
+  filterCourtMcpScopes,
+} from "@/lib/mcp-court-oauth";
 
 function invalidRequest(message: string) {
   return (
@@ -37,7 +42,16 @@ export default async function McpAuthorizePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const clientId = typeof params.client_id === "string" ? params.client_id : null;
+  let resource: string;
+  try {
+    resource = resolveOAuthResource(params.resource);
+  } catch {
+    return invalidRequest("Unknown or unavailable OAuth resource.");
+  }
+  const requestedResource =
+    typeof params.resource === "string" ? params.resource : undefined;
+  const clientId =
+    typeof params.client_id === "string" ? params.client_id : null;
   const redirectUri =
     typeof params.redirect_uri === "string" ? params.redirect_uri : null;
   const state = typeof params.state === "string" ? params.state : null;
@@ -86,6 +100,7 @@ export default async function McpAuthorizePage({
         scope,
         code_challenge: codeChallenge,
         client_name: clientName,
+        resource: requestedResource,
       }).toString(),
     );
   }
@@ -112,16 +127,22 @@ export default async function McpAuthorizePage({
         role: true,
       },
     }),
-    prisma.oAuthGrant.findUnique({
+    prisma.oAuthGrant.findFirst({
       where: {
-        clientId_userId: { clientId, userId: session.user.id },
+        clientId,
+        userId: session.user.id,
+        resource,
       },
       select: { active: true, organizationIds: true },
     }),
   ]);
-  const availableScopes = allowedMcpScopesForUser(user?.isAdmin === true, {
+  const allAvailableScopes = allowedMcpScopesForUser(user?.isAdmin === true, {
     allowHumanApproval: isHumanApprovalOAuthRedirectUri(redirectUri),
   });
+  const availableScopes =
+    resource === LEGACY_MCP_RESOURCE
+      ? allAvailableScopes
+      : filterCourtMcpScopes(allAvailableScopes, user?.isAdmin === true);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground">
@@ -140,6 +161,7 @@ export default async function McpAuthorizePage({
           </p>
 
           <McpConsentForm
+            resource={requestedResource}
             clientId={clientId}
             redirectUri={redirectUri}
             state={state}

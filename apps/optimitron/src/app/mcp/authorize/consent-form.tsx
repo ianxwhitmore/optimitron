@@ -55,6 +55,7 @@ export function McpConsentForm({
   availableOrganizations,
   codeChallenge,
   initialOrganizationIds,
+  resource,
 }: {
   clientId: string;
   redirectUri: string;
@@ -69,6 +70,7 @@ export function McpConsentForm({
   }>;
   codeChallenge: string;
   initialOrganizationIds: string[];
+  resource?: string;
 }) {
   const [selected, setSelected] = useState<Set<McpScope>>(
     () => new Set(requestedScopes.filter((s) => availableScopes.includes(s))),
@@ -118,6 +120,7 @@ export function McpConsentForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           client_id: clientId,
+          resource,
           redirect_uri: redirectUri,
           state,
           scope: scopesToWire(Array.from(selected)),
