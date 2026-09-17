@@ -3041,6 +3041,13 @@ importers:
       jose:
         specifier: ^6.2.2
         version: 6.2.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.19.37
+        version: 20.19.37
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
 
   packages/neobrutalist-ui:
     dependencies:

@@ -29,28 +29,28 @@ function parseCourtPayload(
   resource: string,
 ): CourtMcpAccessToken {
   if (
-    payload.type !== "access" ||
-    payload.resource !== resource ||
+    payload["type"] !== "access" ||
+    payload["resource"] !== resource ||
     payload.aud !== resource ||
     typeof payload.sub !== "string" ||
     !payload.sub ||
-    typeof payload.clientId !== "string" ||
-    !payload.clientId ||
-    !Array.isArray(payload.scopes) ||
-    !payload.scopes.every(
+    typeof payload["clientId"] !== "string" ||
+    !payload["clientId"] ||
+    !Array.isArray(payload["scopes"]) ||
+    !payload["scopes"].every(
       (scope) =>
         typeof scope === "string" &&
         (COURT_MCP_SCOPES as readonly string[]).includes(scope),
     ) ||
-    !Array.isArray(payload.organizationIds) ||
-    payload.organizationIds.length !== 0
+    !Array.isArray(payload["organizationIds"]) ||
+    payload["organizationIds"].length !== 0
   ) {
     throw new Error("Invalid Court MCP access token claims");
   }
   return {
     sub: payload.sub,
-    clientId: payload.clientId,
-    scopes: payload.scopes as McpScope[],
+    clientId: payload["clientId"],
+    scopes: payload["scopes"] as McpScope[],
     organizationIds: [],
     resource,
   };

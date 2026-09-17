@@ -175,8 +175,8 @@ export async function runAuditedMcpTool<T>(
   const attribution = {
     ...ctx,
     agentId:
-      ctx.agentId ?? (typeof args.agentId === "string" ? args.agentId : null),
-    runId: ctx.runId ?? (typeof args.runId === "string" ? args.runId : null),
+      ctx.agentId ?? (typeof args["agentId"] === "string" ? args["agentId"] : null),
+    runId: ctx.runId ?? (typeof args["runId"] === "string" ? args["runId"] : null),
   };
   try {
     const output = await fn();
