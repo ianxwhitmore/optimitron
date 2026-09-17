@@ -25,14 +25,15 @@
 - OUR INITIATIVES:
 - [RIGHT TO TRIAL INITIATIVE](#right-to-trial)
 - [1% TREATY](https://warondisease.org)
-- [WISHOCRACY](https://wishocracy.org)
-- [CHECK OUT OUR PODCAST](https://www.youtube.com/@WarOnDisease/podcasts)
 - [DECENTRALIZEDFDA](https://dfda.earth)
+- [CHECK OUT OUR PODCAST](https://www.youtube.com/@WarOnDisease/podcasts)
+- [WISHOCRACY](https://wishocracy.org)
 - THE RIGHT TO TRIAL
 ### WE CAN ERADICATE DISEASE.
 - Give every patient the right to join a clinical trial for the most promising treatments - with a clinician, at a licensed treatment center, wherever they live. Every patient gets more options. Every result helps us find what works.
 - [SEE HOW MONTANA DID IT](/montana)
 - [BRING IT TO MY STATE](#state-support)
+- [ABOUT US](/about)
 - HOW MONTANA IS ACCELERATING CLINICAL DISCOVERY
 ### PATIENTS CAN REACH TREATMENTS. PROVIDERS CAN DELIVER THEM.
 - Montana removed the terminal-illness restriction in 2023. In 2025, SB 535 created licensed experimental treatment centers, direct provider-patient payment agreements, outcome monitoring, adverse event reporting, and an access requirement funded by 2% of each center's net annual profits.

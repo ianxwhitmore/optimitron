@@ -1581,6 +1581,7 @@ const siteConfigs: Record<SiteVariant, SiteConfig> = {
       "rightToTryModelAct",
       "rightToTrialImpact",
       "donate",
+      "aboutUs",
     ],
     sidebarSections: [],
     sidebarVoteCtaEnabled: false,
@@ -1602,7 +1603,7 @@ const siteConfigs: Record<SiteVariant, SiteConfig> = {
       {
         id: "evidence",
         label: "EVIDENCE",
-        items: ["rightToTrialImpact", "research", "faq"],
+        items: ["rightToTrialImpact", "research", "faq", "aboutUs"],
       },
       {
         id: "support",

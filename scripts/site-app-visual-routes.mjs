@@ -1059,11 +1059,14 @@ export function getSiteAppScreenshotRoutes(appName, siteVariant) {
         covers: [campaignPlanPageFile],
       });
     }
-    routes.push({
-      label: "Legacy About redirect",
-      routeName: "about-redirect",
-      routePath: "/about",
-    });
+    const aboutRoute = routes.find(({ routePath }) => routePath === "/about");
+    if (aboutRoute) {
+      aboutRoute.covers = [
+        "apps/acceleratedmedicine/app/about/page.tsx",
+        "apps/acceleratedmedicine/components/about-page.tsx",
+        "apps/acceleratedmedicine/lib/board-members.ts",
+      ];
+    }
   }
 
   if ([VARIANTS.SURVEY, VARIANTS.ACCELERATED_MEDICINE].includes(siteVariant)) {

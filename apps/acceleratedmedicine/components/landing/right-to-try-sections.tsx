@@ -113,19 +113,21 @@ export function UniversalRightToTryHero() {
               </p>
             </Card>
           </a>
-          <a className="block lg:col-span-2" href="https://wishocracy.org">
+          <a className="block lg:col-span-2" href="https://dfda.earth">
             <Card
-              className={`${heroBoxClass} -rotate-1 gap-5 bg-brutal-red`}
+              className={`${heroBoxClass} -rotate-1 gap-5 bg-brutal-green`}
             >
               <div className="border-4 border-primary bg-background p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <Workflow
+                <Microscope
                   aria-hidden="true"
-                  className="h-12 w-12"
+                  className="h-14 w-14"
                   strokeWidth={3}
                 />
               </div>
-              <p className="max-w-full px-1 text-2xl font-black uppercase leading-[0.95] tracking-tight text-brutal-red-foreground sm:text-3xl md:text-4xl">
-                Wishocracy
+              <p className="max-w-full px-1 text-2xl font-black uppercase leading-[0.95] tracking-tight sm:text-3xl md:text-4xl">
+                Decentralized
+                <br />
+                FDA
               </p>
             </Card>
           </a>
@@ -152,22 +154,20 @@ export function UniversalRightToTryHero() {
           </a>
           <a
             className="block sm:col-span-2 sm:w-[calc((100%-1.25rem)/2)] sm:justify-self-center lg:col-span-2 lg:w-auto lg:justify-self-stretch"
-            href="https://dfda.earth"
+            href="https://wishocracy.org"
           >
             <Card
-              className={`${heroBoxClass} -rotate-1 gap-5 bg-brutal-green`}
+              className={`${heroBoxClass} -rotate-1 gap-5 bg-brutal-red`}
             >
               <div className="border-4 border-primary bg-background p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <Microscope
+                <Workflow
                   aria-hidden="true"
-                  className="h-14 w-14"
+                  className="h-12 w-12"
                   strokeWidth={3}
                 />
               </div>
-              <p className="text-3xl font-black uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-5xl">
-                Decentralized
-                <br />
-                FDA
+              <p className="max-w-full px-1 text-2xl font-black uppercase leading-[0.95] tracking-tight text-brutal-red-foreground sm:text-3xl md:text-4xl">
+                Wishocracy
               </p>
             </Card>
           </a>
@@ -203,6 +203,13 @@ export function UniversalRightToTryHero() {
             <a href="#state-support">
               Bring it to my state <MapPin className="h-5 w-5" />
             </a>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            className={`${buttonShadow} bg-background text-foreground`}
+          >
+            <Link href="/about">About us</Link>
           </Button>
         </div>
         </div>
