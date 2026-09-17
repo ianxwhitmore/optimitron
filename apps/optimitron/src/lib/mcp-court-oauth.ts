@@ -49,6 +49,15 @@ export function resolveOAuthResource(
       site.domains.map((domain) => `https://${domain}/api/mcp`),
     ),
   ]);
+  const issuer = new URL(getIssuerUrl());
+  const loopbackHosts = ["localhost", "127.0.0.1", "[::1]"];
+  if (loopbackHosts.includes(issuer.hostname)) {
+    for (const hostname of loopbackHosts) {
+      const alias = new URL("/api/mcp", issuer);
+      alias.hostname = hostname;
+      legacyResources.add(alias.toString());
+    }
+  }
   if (legacyResources.has(value)) return LEGACY_MCP_RESOURCE;
   throw new Error("Unknown OAuth resource");
 }

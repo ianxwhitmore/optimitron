@@ -153,6 +153,26 @@ describe("Court resource credentials", () => {
     ).rejects.toThrow();
   });
 
+  it("accepts legacy loopback aliases only with the configured issuer protocol and port", () => {
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("MCP_OAUTH_ISSUER", "http://localhost:3001");
+    expect(resolveOAuthResource("http://127.0.0.1:3001/api/mcp")).toBe(
+      "legacy",
+    );
+    expect(resolveOAuthResource("http://[::1]:3001/api/mcp")).toBe("legacy");
+    for (const resource of [
+      "http://127.0.0.1:3017/api/mcp",
+      "https://127.0.0.1:3001/api/mcp",
+      "http://127.0.0.1:3001/api/mcp?x=1",
+    ]) {
+      expect(() => resolveOAuthResource(resource)).toThrow();
+    }
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(() =>
+      resolveOAuthResource("http://127.0.0.1:3001/api/mcp"),
+    ).toThrow();
+  });
+
   it("pins production resource and permits only explicitly configured local resources", () => {
     expect(
       courtMcpResource("production", "https://other.invalid/api/mcp"),
