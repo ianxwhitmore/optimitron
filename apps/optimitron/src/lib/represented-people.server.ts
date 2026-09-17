@@ -1,5 +1,6 @@
 import {
   CourtCasePartyRole,
+  HUMANITY_V_GOVERNMENT_CASE_SLUG,
   PersonConditionStatus as PersonConditionStatusEnum,
   PersonLifeStatus,
   VotePosition,
@@ -12,7 +13,6 @@ import { prisma } from "@/lib/prisma";
 import { getPersonHref } from "@/lib/person-href";
 import { buildOfficialReferendumVoteWhere } from "@/lib/referendum-vote-classification.server";
 import { buildApprovedOrganizationPositionWhere } from "@/lib/referendum-site.server";
-import { HUMANITY_V_GOVERNMENT_CASE_SLUG } from "@/lib/humanity-v-government-case.server";
 import { TREATY_REFERENDUM_SLUG } from "@/lib/treaty";
 import { getUserDisplayName, userDisplaySelect } from "@/lib/user-display";
 

@@ -404,6 +404,10 @@ jobs:
         if: ${{ fromJSON(needs.changes.outputs.site_apps || 'false') == true }}
         run: pnpm --filter @apps/acceleratedmedicine test:integration
 
+      - name: Court permissions and enrollment database regression tests
+        if: ${{ fromJSON(needs.changes.outputs.site_apps || 'false') == true }}
+        run: pnpm --filter @apps/courtofhumanity test:integration
+
   site-apps-build:
     name: site-apps-build (${{ matrix.app }})
     if: ${{ fromJSON(needs.changes.outputs.site_apps || 'false') == true }}

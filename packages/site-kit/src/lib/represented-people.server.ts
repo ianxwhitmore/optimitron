@@ -189,7 +189,7 @@ export async function getRepresentedPeopleGalleryData(
       select: { id: true },
     }),
     prisma.courtCase.findUnique({
-      where: { slug: HUMANITY_V_GOVERNMENT_CASE_SLUG },
+      where: { slug: HUMANITY_V_GOVERNMENT_CASE_SLUG, deletedAt: null, isPublic: true },
       select: { id: true },
     }),
   ]);
@@ -211,6 +211,7 @@ export async function getRepresentedPeopleGalleryData(
     personWhere: Prisma.PersonWhereInput = visiblePersonWhere,
   ): Prisma.CourtCasePartyWhereInput => ({
     caseId: courtCase?.id ?? "__missing_humanity_v_government_case__",
+    case: { deletedAt: null, isPublic: true },
     deletedAt: null,
     isPublic: true,
     role: CourtCasePartyRole.NAMED_PLAINTIFF,
@@ -238,10 +239,8 @@ export async function getRepresentedPeopleGalleryData(
     ],
   });
 
-  // Sort handling. Prisma can't express the efficacy-lag aggregation or a
-  // relation-field nulls-last order, so those sorts hydrate the filtered rows,
-  // sort in-memory, and then paginate.
-  const isInMemorySort = sort === "died-closest-to-cure" || sort === "recent";
+  // Only the efficacy-lag aggregate requires hydration before pagination.
+  const isInMemorySort = sort === "died-closest-to-cure";
   const orderBy = (() => {
     switch (sort) {
       case "alphabetical":
@@ -255,6 +254,58 @@ export async function getRepresentedPeopleGalleryData(
     }
   })();
   const gallerySkip = (page - 1) * pageSize;
+
+  async function loadRecentParties() {
+    // Match Boolean(image): empty strings belong with null images. Reuse the
+    // same visibility and user filters for both groups and the boundary count.
+    const withPhoto = plaintiffPartyWhere({
+      AND: [
+        visiblePersonWhere,
+        { image: { not: null } },
+        { image: { not: "" } },
+      ],
+    });
+    const withoutPhoto = plaintiffPartyWhere({
+      AND: [visiblePersonWhere, { OR: [{ image: null }, { image: "" }] }],
+    });
+    // Keep the split boundary and both slices on one snapshot if photos or
+    // visibility change while this request is in flight.
+    return prisma.$transaction(
+      async (tx) => {
+        const photoCount = await tx.courtCaseParty.count({ where: withPhoto });
+        const photoTake = Math.min(
+          pageSize,
+          Math.max(0, photoCount - gallerySkip),
+        );
+        const recentOrder = [
+          { createdAt: "desc" as const },
+          { id: "desc" as const },
+        ];
+        const [photos, others] = await Promise.all([
+          photoTake > 0
+            ? tx.courtCaseParty.findMany({
+                where: withPhoto,
+                orderBy: recentOrder,
+                skip: gallerySkip,
+                take: photoTake,
+                select: galleryPartySelect,
+              })
+            : [],
+          photoTake < pageSize
+            ? tx.courtCaseParty.findMany({
+                where: withoutPhoto,
+                orderBy: recentOrder,
+                skip: Math.max(0, gallerySkip - photoCount),
+                take: pageSize - photoTake,
+                select: galleryPartySelect,
+              })
+            : [],
+        ]);
+        return [...photos, ...others];
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
+  }
 
   const [
     officialVoteCount,
@@ -287,12 +338,14 @@ export async function getRepresentedPeopleGalleryData(
       : 0,
     courtCase ? prisma.courtCaseParty.count({ where: filteredPartyWhere }) : 0,
     courtCase
-      ? prisma.courtCaseParty.findMany({
-          where: filteredPartyWhere,
-          orderBy,
-          ...(isInMemorySort ? {} : { skip: gallerySkip, take: pageSize }),
-          select: galleryPartySelect,
-        })
+      ? sort === "recent"
+        ? loadRecentParties()
+        : prisma.courtCaseParty.findMany({
+            where: filteredPartyWhere,
+            orderBy,
+            ...(isInMemorySort ? {} : { skip: gallerySkip, take: pageSize }),
+            select: galleryPartySelect,
+          })
       : [],
   ]);
 
@@ -302,12 +355,6 @@ export async function getRepresentedPeopleGalleryData(
           const aPerson = a.subject.person;
           const bPerson = b.subject.person;
           if (!aPerson || !bPerson) return 0;
-          if (sort === "recent") {
-            const imagePresence =
-              Number(Boolean(bPerson.image)) - Number(Boolean(aPerson.image));
-            if (imagePresence !== 0) return imagePresence;
-            return b.createdAt.getTime() - a.createdAt.getTime();
-          }
           const aDays =
             aPerson.memorial?.efficacyLagEvidence[0]?.diedBeforeApprovalDays ??
             Number.POSITIVE_INFINITY;
@@ -353,4 +400,3 @@ export async function getRepresentedPeopleGalleryData(
     totalPages,
   };
 }
-
