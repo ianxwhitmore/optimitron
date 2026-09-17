@@ -121,7 +121,7 @@
 - status (enum) — Optional status filter to narrow dependency candidates.
 ### TASKS:PERSONAL (91)
 #### recordMeasurement tasks:personal
-- Record a personal dFDA/N-of-1 measurement such as a medication dose, food, symptom, mood, sleep, activity, lab, or vital sign. Use variableName plus category/unit for new variables, or globalVariableId for an existing variable.
+- Record an ad hoc personal dFDA/N-of-1 measurement. To answer, correct, or snooze a due or overdue notification, use respondToTrackingReminderNotifications instead. recordMeasurement does not mark notifications answered. Supported measurements include a medication dose, food, symptom, mood, sleep, activity, lab, or vital sign. Use variableName plus category/unit for new variables, or globalVariableId for an existing variable. Pass value in the supplied unit, or your personal default when omitted. The server preserves the entered value and converts it to the canonical unit. One-time unit choices do not change personal defaults.
 - PARAMETERS (15)
 - globalVariableId (string)
 - variableName (string)
@@ -147,9 +147,11 @@
 - limit (number) — Page size. Default 100, maximum 500.
 - cursor (string) — nextCursor from the previous page. Repeat the same filters until nextCursor is null.
 #### updateMeasurement tasks:personal
-- Correct one of the authenticated user's measurements by ID. Use listMeasurements to get the ID. Pass value in the normalized unit. If the measurement was converted between units, also pass originalValue in its original unit. Units and variable identity stay unchanged. Optional metadata fields patch the existing row. The tool rejects measurements owned by another user and refreshes cached summaries.
+- Correct one of the authenticated user's measurements by ID. Use listMeasurements to get the ID. Pass value with unitAbbreviation, unitName, or unitId to correct the entered amount and unit. The server converts it to the canonical unit and keeps the corrected input in originalValue and originalUnit. Without unit fields, value uses the existing stored unit; the server derives originalValue. Optional originalValue must match the converted value. Variable identity, timestamp, and personal defaults stay unchanged. Optional metadata fields patch the existing row. The tool rejects measurements owned by another user and refreshes cached summaries.
+- PARAMETERS (11)
 - measurementId (string, required)
-- originalValue (number) — Corrected value in the existing original unit. Required when originalUnitId differs from unitId; otherwise defaults to value.
+- unitAbbreviation (string) — Unit of the corrected value, such as mg or g.
+- originalValue (number) — Optional corrected value in the existing original unit. The server validates it against value. Omit this field when you supply unit fields.
 - duration (number | null) — Duration in seconds. Null clears it.
 - note (string | null)
 - sourceName (string | null)
@@ -158,7 +160,7 @@
 #### deleteMeasurement tasks:personal
 - Soft-delete one of the authenticated user's measurements by ID. Use listMeasurements to get the ID. The tool rejects measurements owned by another user and refreshes cached summaries.
 #### upsertTrackingReminder tasks:personal
-- Create or edit a personal tracking reminder for medications, food, symptoms, mood, sleep, activity, labs, or vitals. When creating a new variable, pass categoryName; Food defaults to servings. To edit a reminder in place, pass trackingReminderId plus only the fields to change. Omit trackingReminderId to create or idempotently update the reminder identified by variable, start time, and frequency. Unit fields set your personal recording unit for the variable; the canonical variable default is unchanged. The response's top-level unit is the unit answers record in. The reminder can later be answered as TRACKED (value 0 for a not-taken day) or SNOOZED.
+- Create or edit a personal tracking reminder for medications, food, symptoms, mood, sleep, activity, labs, or vitals. When creating a new variable, pass categoryName; Food defaults to servings. To edit a reminder in place, pass trackingReminderId plus only the fields to change. Omit trackingReminderId to create or idempotently update the reminder identified by variable, start time, and frequency. Unit fields set your personal recording unit for the variable; the canonical variable default is unchanged. Existing reminder amounts and personal limits convert with the preference. Unit changes are blocked if prior reminder receipts contain values without unit metadata. Use explicit units on individual measurements instead. A supplied defaultValue uses the new unit. The response's top-level unit is the unit answers record in. The reminder can later be answered as TRACKED (value 0 for a not-taken day) or SNOOZED.
 - trackingReminderId (string) — Existing reminder ID to edit in place. Patchable: active, defaultValue, instructions, reminderStartTime, reminderEndTime, reminderFrequency, startTrackingDate, stopTrackingDate, unit fields, and fillingType. Fixed at creation: the tracked variable (variableName, globalVariableId, categoryName, combinationOperation) — to change it, create a new reminder and set active: false on this one.
 - defaultValue (number | null) — Pre-filled value, such as a normal medication dose or symptom rating. Pass null to clear it when editing.
 - unitAbbreviation (string) — Short unit such as mg, IU, servings, count, or 1-5. serving and {serving} are accepted aliases for servings. Sets your personal recording unit for this variable, on create or on edit.
@@ -177,8 +179,8 @@
 - Get one of the authenticated user's tracking reminders in full, including untruncated instructions, the expanded variable, and the effective recording unit. Use listTrackingReminders to find the ID.
 - trackingReminderId (string, required)
 #### listTrackingReminderNotifications tasks:personal
-- List the authenticated user's tracking notification queue for one local day or an inclusive local-date range. A reminder defines a schedule; a notification is one occurrence. Filter by trackingReminderId or effective status, including OVERDUE. The default compact shape carries id (the trackingReminderId to answer with), name, due (local time), status, defaultValue, unit, and fillingType, so an agent can answer without a second lookup. An OVERDUE item with sameDayMeasurementCount already has same-day data for its variable recorded outside this notification: verify with listMeasurements before answering again, or you may duplicate data. Pass compact: false for full records with scheduledAt, effective notifyAt, and snoozedUntil. Set includeCompleted to include recent TRACKED notifications.
-- dateKey (string) — One local date in YYYY-MM-DD. Defaults to today. Do not combine with startDateKey or endDateKey.
+- List the authenticated user's tracking notification queue. OVERDUE with no date parameters returns outstanding stored notifications from all dates, newest first, plus schedule occurrences generated for the last 14 local days. The response discloses that generation window; pass an explicit date range to inspect earlier unstored schedules. Explicit dates select one local day or an inclusive local-date range. A stored occurrence with canRespond: false cannot be answered through the current schedule; follow its responseUnavailableReason before responding. A reminder defines a schedule; a notification is one occurrence. Filter by trackingReminderId or effective status, including OVERDUE. The default compact shape carries id (the trackingReminderId to answer with), globalVariableId, nOf1VariableId, dateKey, name, due (local time), status, defaultValue, unit, and fillingType, so an agent can answer without a second lookup. An OVERDUE item with sameDayMeasurementCount already has same-day data for its variable recorded outside this notification: verify with listMeasurements before answering again, or you may duplicate data. Pass compact: false for full records with scheduledAt, effective notifyAt, and snoozedUntil. Set includeCompleted to include recent TRACKED notifications.
+- dateKey (string) — One local date in YYYY-MM-DD. Defaults to today except for an unbounded stored OVERDUE backlog. Do not combine with startDateKey or endDateKey.
 - startDateKey (string) — First local date in an inclusive range. Defaults to endDateKey when omitted.
 - endDateKey (string) — Last local date in an inclusive range. Defaults to startDateKey when omitted. Ranges may include at most 31 days.
 - trackingReminderId (string) — Return occurrences for only this reminder.
@@ -188,16 +190,15 @@
 #### listDueTrackingReminders tasks:personal
 - Deprecated alias for listTrackingReminderNotifications. It keeps the reminders response key for existing callers.
 - dateKey (string) — Local date in YYYY-MM-DD. Defaults to today.
-- compact (boolean) — Return trackingReminderId as id, plus name, due, and status.
+- compact (boolean) — Return trackingReminderId as id, plus globalVariableId, nOf1VariableId, dateKey, name, due, and status.
 - includeCompleted (boolean) — When true, include reminders already answered or snoozed for the date.
 #### respondToTrackingReminderNotifications tasks:personal
-- Answer several tracking reminder notifications in one call. To answer specific reminders, send only except entries and omit defaultStatus; every other reminder stays untouched. Send defaultStatus only when you intend to answer the whole day. An except entry can also correct a response you already recorded. All-or-nothing: if any exception ID is not scheduled for the date, the tool writes nothing and returns an error. The call targets one local date; when catching up a past day (for example after midnight), pass that day's dateKey. Each result reports notifyAtLocal, the occurrence the answer landed on: verify it is the day you meant.
+- Use this tool to answer, correct, or snooze due or overdue tracking reminder notifications. Unlike recordMeasurement, this updates notification state and records a measurement when tracked. Answer several notifications in one call. To answer specific reminders, send only except entries and omit defaultStatus; every other reminder stays untouched. Send defaultStatus only when you intend to answer the whole day. An except entry can also correct a response you already recorded. All-or-nothing: if any exception ID is not scheduled for the date, the tool writes nothing and returns an error. The call targets one local date; when catching up a past day (for example after midnight), pass that day's dateKey. Each result reports notifyAtLocal, the occurrence the answer landed on: verify it is the day you meant.
 - defaultStatus (enum) — Optional. Apply this status to every due and unanswered notification without an exception. Omit it to answer only the except entries. Already-answered notifications are never touched by the default.
 - except (array) — Answer or correct individual notifications by trackingReminderId. Each entry needs a status when defaultStatus is omitted.
 - snoozeMinutes (number) — Set the snooze duration. The default is 30 minutes. The server caps the deferred time at the local day's end.
 #### respondToTrackingReminder tasks:personal
 - Answer a due tracking reminder. TRACKED records a measurement. Record value 0 when the treatment, food, or activity was not taken; those zero days are the baseline that causal analysis needs. SNOOZED defers the notification. Deactivate the reminder when it no longer applies. SKIPPED is retired: it now records a zero and returns a deprecation notice. When dateKey and trackedAt are omitted, the answer targets the reminder's most recent due occurrence within the last 7 days that is still unanswered — so an after-midnight catch-up resolves yesterday's occurrence, not tomorrow's. The response's notifyAtLocal shows where the answer landed.
-- PARAMETERS (11)
 - status (enum, required) — TRACKED records a measurement; pass value 0 for a not-taken day. SNOOZED defers the notification. SKIPPED is accepted but retired and records a zero.
 - value (number) — Override dose/rating/value. If omitted for TRACKED, the reminder defaultValue is used.
 - unitAbbreviation (string)
