@@ -430,6 +430,54 @@ with `cursor` set until it is null. Each row carries `startTime` (UTC) and
 from `startTimeLocal` — reading raw UTC as local misdates late-evening entries
 by a day.
 
+### Measurement Units And Corrections
+
+Pass one unit selector: `unitAbbreviation`, `unitName`, or `unitId`.
+For a new entry, omit the unit to use your personal default.
+The server stores `value` in the canonical variable unit.
+It preserves the entered amount in `originalValue` and `originalUnit`.
+A one-time unit choice does not change your personal default.
+
+Use `listMeasurements` to find an entry ID. Then call `updateMeasurement`:
+
+```json
+{
+  "measurementId": "<ID from listMeasurements>",
+  "value": 0.15,
+  "unitAbbreviation": "g"
+}
+```
+
+For a variable with canonical unit mg, this stores `150 mg` and preserves `0.15 g`.
+The entry keeps its ID, timestamp, variable, and optional metadata.
+Without unit fields, `value` uses the entry's existing stored unit.
+The server derives the original value. An optional `originalValue` must match the conversion.
+Do not combine `originalValue` with unit fields.
+
+Standard physical conversions reuse the data package's converter.
+Counts, rating scales, unknown units, and cross-dimension conversions require explicit conversion definitions.
+The server rejects unsupported conversions. It does not assume a capsule's mass or a solution's concentration.
+
+Unit fields on `upsertTrackingReminder` change your personal preference for that variable.
+Existing reminder presets and personal numeric limits convert with that preference.
+Prior reminder receipts have no unit metadata. A saved receipt amount blocks a preference change.
+Use explicit units on individual measurements instead. Historical receipt values remain untouched.
+A supplied `defaultValue` replaces the preset in the new unit.
+Numeric summary statistics use canonical units, regardless of the personal preference.
+
+Legacy rows can contain unconverted values. Numeric summaries remain null while a variable contains such rows.
+Counts and date bounds remain available. Audit these rows with the dry-run command:
+
+```powershell
+pnpm --dir apps/optimitron exec tsx scripts/normalize-measurement-units.ts --variable=<globalVariableId>
+```
+
+Inspect the report before you add `--apply`. Omit `--variable` to inspect all variables.
+The command preserves original entries and skips unsupported conversions.
+It repairs batches of 500 rows and refreshes each affected summary once per variable.
+Each variable commits in one transaction with a 60-second timeout. A failed variable rolls back.
+Correct unsupported entries through MCP with the intended amount and a compatible unit.
+
 ### Answering Tracking Reminders
 
 A reminder has two answers: `TRACKED` records a measurement, `SNOOZED` defers
@@ -447,12 +495,26 @@ whether an old skip meant zero or meant nobody answered.
 `listTrackingReminderNotifications` returns `notifyAtLocal` (compact: `due`) in
 the user's zone with the offset attached, plus the raw UTC instant in
 `notifyAt` (compact: `dueUtc`). `dateKey` and the day boundaries are local.
-The compact shape is the default and carries `defaultValue`, `unit`, and
+The compact shape is the default and carries `globalVariableId`, `nOf1VariableId`,
+the occurrence's local `dateKey`, `defaultValue`, `unit`, and
 `fillingType`, so answering a queue needs no `listTrackingReminders` call;
 pass `compact: false` for full records. An OVERDUE item with
 `sameDayMeasurementCount` already has same-day data for its variable recorded
 outside the notification — verify with `listMeasurements` before answering
 again, or you may duplicate data.
+
+With `status: "OVERDUE"` and no date parameters, the queue returns all persisted
+outstanding notifications, newest first. It also generates schedule occurrences
+for the last 14 local days. The `backlog` object discloses this generation window;
+use an explicit date range to inspect earlier schedules that have no stored
+notification. Explicit date and range queries retain their existing scope.
+Stored rows whose reminder is inactive or no longer scheduled on that date carry
+`canRespond: false` and `responseUnavailableReason`; inspect the schedule before
+attempting to answer them.
+
+Use `respondToTrackingReminderNotifications` for notification answers, corrections,
+and snoozes. `recordMeasurement` is for ad hoc entries and does not answer a
+notification.
 
 `listTrackingReminders` also defaults to a compact shape with truncated
 instructions; `getTrackingReminder` returns one reminder in full.

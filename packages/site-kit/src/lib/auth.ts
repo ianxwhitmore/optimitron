@@ -265,9 +265,11 @@ export const authOptions: NextAuthOptions = {
 
       // Enrich token with Person-owned identity when we know the user id
       const identityUserId = user?.id ?? (typeof token.id === "string" ? token.id : undefined)
+      // A missing or deleted account must not retain an old admin claim.
+      token.isAdmin = false
       if (identityUserId) {
         const identity = await prisma.user.findUnique({
-          where: { id: identityUserId },
+          where: { id: identityUserId, deletedAt: null },
           select: {
             id: true,
             email: true,
@@ -287,7 +289,7 @@ export const authOptions: NextAuthOptions = {
           token.referralCode = identity.referralCode
           token.handle = identity.person?.handle ?? null
           token.isPublic = identity.person?.isPublic ?? false
-          token.isAdmin = identity.isAdmin
+          token.isAdmin = identity.isAdmin === true
         }
       }
 

@@ -44,7 +44,8 @@
     "./datasets/medical": "./src/datasets/medical.ts",
     "./datasets/medical-slug": "./src/datasets/medical-slug.ts",
     "./fetchers/world-leaders": "./src/fetchers/world-leaders.ts",
-    "./datasets/world-leaders": "./src/datasets/world-leaders.ts"
+    "./datasets/world-leaders": "./src/datasets/world-leaders.ts",
+    "./unit-conversion": "./src/unit-conversion.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

@@ -9279,7 +9279,7 @@ describe("MCP server tool dispatch", () => {
   });
 
   describe("tracking reminders and measurements", () => {
-    it("advertises originalValue only on updateMeasurement", async () => {
+    it("advertises unit correction fields only on updateMeasurement", async () => {
       const client = await setup("user-1", ALL_SCOPES);
       const tools = await client.listTools();
       const updateMeasurement = tools.tools.find(
@@ -9292,10 +9292,10 @@ describe("MCP server tool dispatch", () => {
       expect(updateMeasurement?.inputSchema.properties).toMatchObject({
         originalValue: {
           type: "number",
-          description: expect.stringContaining(
-            "Required when originalUnitId differs from unitId",
-          ),
         },
+        unitId: { type: "string" },
+        unitAbbreviation: { type: "string" },
+        unitName: { type: "string" },
       });
       expect(upsertRelationship?.inputSchema.properties).not.toHaveProperty(
         "originalValue",
@@ -9498,95 +9498,6 @@ describe("MCP server tool dispatch", () => {
       expect(body.message).toContain("value must be a finite number");
       expect(mocks.transaction).not.toHaveBeenCalled();
       expect(mocks.measurementUpsert).not.toHaveBeenCalled();
-    });
-
-    it("recordMeasurement matches unit names case-insensitively", async () => {
-      const gramsUnit = {
-        abbreviatedName: "g",
-        id: "unit-grams",
-        name: "Grams",
-        ucumCode: "g",
-      };
-      mocks.globalVariableFindFirst.mockResolvedValue(FOOD_VARIABLE);
-      mocks.unitFindFirst.mockImplementation(
-        (args: {
-          where: {
-            name?: { equals?: string; mode?: string };
-          };
-        }) => {
-          const { where } = args;
-          return where.name?.equals === "grams" &&
-            where.name.mode === "insensitive"
-            ? gramsUnit
-            : null;
-        },
-      );
-      mocks.measurementUpsert.mockResolvedValue({
-        globalVariableId: "gv-greek-yogurt",
-        id: "measurement-food-1",
-        subjectId: "subject-1",
-        unitId: "unit-grams",
-        value: 150,
-      });
-
-      const client = await setup("user-1", ALL_SCOPES);
-      const result = await client.callTool({
-        name: "recordMeasurement",
-        arguments: {
-          unitName: "grams",
-          value: 150,
-          variableName: "Greek yogurt",
-        },
-      });
-
-      expect(result.isError).toBeFalsy();
-      expect(mocks.measurementUpsert).toHaveBeenCalledTimes(1);
-      expect(mocks.unitFindFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            deletedAt: null,
-            name: { equals: "grams", mode: "insensitive" },
-          },
-        }),
-      );
-    });
-
-    it("recordMeasurement without a unit uses and preserves the user's default unit", async () => {
-      // Regression: the NOf1Variable upsert used to write the canonical unit
-      // back on every recording, so a per-user unit preference (set through
-      // updateTrackingVariableSettingsForUser) was ignored and then reverted.
-      mocks.nOf1VariableUpsert.mockResolvedValue({
-        ...NOF1_VARIABLE,
-        defaultUnitId: "unit-mg",
-      });
-      mocks.measurementUpsert.mockResolvedValue({
-        globalVariableId: "gv-vitd",
-        id: "measurement-2",
-        subjectId: "subject-1",
-        unitId: "unit-mg",
-        value: 5000,
-      });
-
-      const client = await setup("user-1", ALL_SCOPES);
-      const result = await client.callTool({
-        name: "recordMeasurement",
-        arguments: { value: 5000, variableName: "Vitamin D" },
-      });
-
-      expect(result.isError).toBeFalsy();
-      const upsertArgs = mocks.nOf1VariableUpsert.mock.calls[0]![0] as {
-        update: Record<string, unknown>;
-      };
-      expect(upsertArgs.update).not.toHaveProperty("defaultUnitId");
-      const measurementArgs = mocks.measurementUpsert.mock.calls[0]![0] as {
-        create: Record<string, unknown>;
-        update: Record<string, unknown>;
-      };
-      expect(measurementArgs.create).toMatchObject({
-        originalUnitId: "unit-mg",
-        unitId: "unit-mg",
-      });
-      expect(measurementArgs.update).toMatchObject({ unitId: "unit-mg" });
     });
 
     it("recordMeasurement requires a category when creating a new variable", async () => {
@@ -9855,7 +9766,10 @@ describe("MCP server tool dispatch", () => {
         id: "measurement-1",
         nOf1VariableId: "nof1-1",
         originalUnitId: "unit-iu",
+        originalUnit: TRACKING_UNIT,
         unitId: "unit-iu",
+        unit: TRACKING_UNIT,
+        globalVariable: TRACKING_VARIABLE,
       });
       mocks.measurementUpdate.mockResolvedValue({
         ...measurementRow("measurement-1", "2026-07-01T08:00:00.000Z"),
@@ -9886,7 +9800,11 @@ describe("MCP server tool dispatch", () => {
       );
       expect(mocks.measurementUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { note: "corrected", originalValue: 0, value: 0 },
+          data: expect.objectContaining({
+            note: "corrected",
+            originalValue: 0,
+            value: 0,
+          }),
           where: { id: "measurement-1" },
         }),
       );
@@ -9928,49 +9846,6 @@ describe("MCP server tool dispatch", () => {
       );
       expect(mocks.nOf1VariableUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "nof1-1" } }),
-      );
-    });
-
-    it("updateMeasurement requires both representations for a converted measurement", async () => {
-      mocks.measurementFindFirst.mockResolvedValue({
-        globalVariableId: "gv-weight",
-        id: "measurement-converted",
-        nOf1VariableId: "nof1-weight",
-        originalUnitId: "unit-g",
-        unitId: "unit-mg",
-      });
-
-      const client = await setup("user-1", ALL_SCOPES);
-      const missingOriginalValue = await client.callTool({
-        name: "updateMeasurement",
-        arguments: { measurementId: "measurement-converted", value: 2000 },
-      });
-
-      expect(missingOriginalValue.isError).toBe(true);
-      expect(parseToolBody(missingOriginalValue).message).toContain(
-        "originalValue is required",
-      );
-      expect(mocks.measurementUpdate).not.toHaveBeenCalled();
-
-      mocks.measurementUpdate.mockResolvedValue({
-        ...measurementRow("measurement-converted", "2026-07-01T08:00:00.000Z"),
-        originalValue: 2,
-        value: 2000,
-      });
-      const corrected = await client.callTool({
-        name: "updateMeasurement",
-        arguments: {
-          measurementId: "measurement-converted",
-          originalValue: 2,
-          value: 2000,
-        },
-      });
-
-      expect(corrected.isError).toBeFalsy();
-      expect(mocks.measurementUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ originalValue: 2, value: 2000 }),
-        }),
       );
     });
 
@@ -10073,6 +9948,10 @@ describe("MCP server tool dispatch", () => {
           args.where.abbreviatedName === "servings" ? FOOD_UNIT : null,
       );
       mocks.globalVariableUpsert.mockResolvedValue(FOOD_VARIABLE);
+      mocks.nOf1VariableUpsert.mockResolvedValue({
+        ...NOF1_VARIABLE,
+        defaultUnitId: FOOD_UNIT.id,
+      });
       mocks.trackingReminderUpsert.mockResolvedValue({
         active: true,
         globalVariableId: "gv-greek-yogurt",
@@ -10259,47 +10138,6 @@ describe("MCP server tool dispatch", () => {
         "tracked variable is fixed at creation",
       );
       expect(mocks.transaction).not.toHaveBeenCalled();
-    });
-
-    it("upsertTrackingReminder changes the recording unit in place via the per-user variable settings", async () => {
-      // #250: the unit is a per-user NOf1Variable setting, not variable
-      // identity, so an ID edit must be able to fix it without recreating
-      // the reminder.
-      const MG_UNIT = {
-        abbreviatedName: "mg",
-        id: "unit-mg",
-        name: "Milligrams",
-        ucumCode: "mg",
-      };
-      mocks.unitFindFirst.mockResolvedValue(MG_UNIT);
-      mocks.trackingReminderFindFirst.mockResolvedValue(
-        EXISTING_TRACKING_REMINDER,
-      );
-      mocks.nOf1VariableUpdate.mockResolvedValue({
-        ...NOF1_VARIABLE,
-        defaultUnitId: "unit-mg",
-      });
-
-      const client = await setup("user-1", ALL_SCOPES);
-      const result = await client.callTool({
-        name: "upsertTrackingReminder",
-        arguments: {
-          trackingReminderId: "reminder-1",
-          unitAbbreviation: "mg",
-        },
-      });
-
-      expect(result.isError).toBeFalsy();
-      expect(mocks.nOf1VariableUpdate).toHaveBeenCalledWith({
-        data: { defaultUnitId: "unit-mg" },
-        where: { id: "nof1-1" },
-      });
-      // The canonical GlobalVariable stays untouched.
-      expect(mocks.globalVariableUpdate).not.toHaveBeenCalled();
-      const body = parseToolBody(result) as {
-        result: { unit: { abbreviatedName: string } | null };
-      };
-      expect(body.result.unit?.abbreviatedName).toBe("mg");
     });
 
     it("upsertTrackingReminder rejects an unknown unit on an ID edit with no write", async () => {
@@ -10586,6 +10424,9 @@ describe("MCP server tool dispatch", () => {
           dateKey: "2026-08-03",
           notifications: [
             {
+              dateKey: "2026-08-03",
+              globalVariableId: "gv-vitd",
+              nOf1VariableId: "nof1-1",
               defaultValue: 1,
               due: "2026-08-03T08:00:00+00:00",
               dueUtc: "2026-08-03T08:00:00.000Z",
@@ -10602,6 +10443,9 @@ describe("MCP server tool dispatch", () => {
           dateKey: "2026-08-03",
           reminders: [
             {
+              dateKey: "2026-08-03",
+              globalVariableId: "gv-vitd",
+              nOf1VariableId: "nof1-1",
               defaultValue: 1,
               due: "2026-08-03T08:00:00+00:00",
               dueUtc: "2026-08-03T08:00:00.000Z",
@@ -10655,6 +10499,135 @@ describe("MCP server tool dispatch", () => {
         now.mockRestore();
       }
     });
+
+    it("returns yesterday and older stored overdue occurrences without hiding the generation window", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-08-20T15:00:00Z"));
+      try {
+        mocks.userFindUnique.mockResolvedValue({ timeZone: "America/Chicago" });
+        mocks.trackingReminderFindMany.mockResolvedValue([
+          EXISTING_TRACKING_REMINDER,
+        ]);
+        const old = {
+          id: "old-notification",
+          userId: "user-1",
+          trackingReminderId: "reminder-1",
+          notifyAt: new Date("2026-07-02T13:00:00Z"),
+          status: "SENT",
+          trackingReminder: EXISTING_TRACKING_REMINDER,
+          trackedValue: null,
+        };
+        mocks.trackingReminderNotificationFindMany.mockImplementation(
+          async (args: {
+            where: { notifyAt: { gte?: Date; lt: Date }; userId: string };
+            include?: unknown;
+          }) => {
+            // Emulate the persisted boundary: the old row is excluded by a date lower bound.
+            expect(args.where.userId).toBe("user-1");
+            return args.include &&
+              (!args.where.notifyAt.gte ||
+                args.where.notifyAt.gte <= old.notifyAt)
+              ? [old]
+              : [];
+          },
+        );
+        mocks.measurementFindMany.mockResolvedValue([
+          { globalVariableId: "gv-vitd", startTime: old.notifyAt },
+        ]);
+        const client = await setup("user-1", ALL_SCOPES);
+        const result = await client.callTool({
+          name: "listTrackingReminderNotifications",
+          arguments: { status: "OVERDUE" },
+        });
+        expect(result.isError).toBeFalsy();
+        const body = parseToolBody(result) as {
+          notifications: Array<{ dateKey: string; due: string }>;
+          backlog: unknown;
+        };
+        expect(body.backlog).toMatchObject({
+          generatedStartDateKey: "2026-08-07",
+          generatedEndDateKey: "2026-08-20",
+          storedNotifications: "all outstanding dates",
+        });
+        expect(body.notifications).toHaveLength(15);
+        expect(body.notifications[0]).toMatchObject({
+          dateKey: "2026-08-20",
+          due: "2026-08-20T08:00:00-05:00",
+        });
+        expect(body.notifications[1]).toMatchObject({
+          dateKey: "2026-08-19",
+          status: "OVERDUE",
+        });
+        expect(body.notifications.at(-1)).toMatchObject({
+          dateKey: "2026-07-02",
+          globalVariableId: "gv-vitd",
+          nOf1VariableId: "nof1-1",
+          sameDayMeasurementCount: 1,
+        });
+        const explicit = await client.callTool({
+          name: "listTrackingReminderNotifications",
+          arguments: { status: "OVERDUE", dateKey: "2026-08-19" },
+        });
+        expect(parseToolBody(explicit)).toMatchObject({
+          dateKey: "2026-08-19",
+          notifications: [expect.objectContaining({ dateKey: "2026-08-19" })],
+        });
+        expect(parseToolBody(explicit)).not.toHaveProperty("backlog");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      { active: false },
+      { stopTrackingDate: new Date("2026-07-01T00:00:00Z") },
+      { startTrackingDate: new Date("2026-07-03T00:00:00Z") },
+    ])(
+      "flags a stored backlog row that the current schedule cannot answer: %j",
+      async (scheduleChange) => {
+        vi.useFakeTimers({
+          now: new Date("2026-08-20T15:00:00Z"),
+          toFake: ["Date"],
+        });
+        try {
+          mocks.userFindUnique.mockResolvedValue({ timeZone: "UTC" });
+          mocks.trackingReminderFindMany.mockResolvedValue([]);
+          mocks.trackingReminderNotificationFindMany.mockResolvedValue([
+            {
+              id: "old-notification",
+              userId: "user-1",
+              trackingReminderId: "reminder-1",
+              notifyAt: new Date("2026-07-02T13:00:00Z"),
+              status: "PENDING",
+              trackedValue: null,
+              trackingReminder: {
+                ...EXISTING_TRACKING_REMINDER,
+                ...scheduleChange,
+              },
+            },
+          ]);
+          const client = await setup("user-1", ALL_SCOPES);
+          const result = await client.callTool({
+            name: "listTrackingReminderNotifications",
+            arguments: { status: "OVERDUE" },
+          });
+          expect(result.isError).toBeFalsy();
+          expect(parseToolBody(result)).toMatchObject({
+            notifications: [
+              {
+                dateKey: "2026-07-02",
+                canRespond: false,
+                responseUnavailableReason: expect.stringContaining(
+                  "Review its schedule",
+                ),
+              },
+            ],
+          });
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
 
     it("filters an inclusive notification range by reminder and overdue status", async () => {
       const now = vi

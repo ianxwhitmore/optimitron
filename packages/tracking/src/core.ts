@@ -2,6 +2,13 @@
 // notification queues. Extracted verbatim from apps/optimitron/src/lib/mcp-server.ts
 // so optimitron.com and dfda.earth serve one implementation over one database.
 import type { Prisma } from "@optimitron/db";
+import { Prisma as PrismaSql } from "@optimitron/db";
+import {
+  convertTrackingValue,
+  normalizeTrackingMeasurement,
+  setTrackingUnitConversion,
+} from "./units";
+import type { TrackingUnitConversion } from "./units";
 import {
   CombinationOperation,
   FillingType,
@@ -28,8 +35,7 @@ import {
 } from "./time-zone";
 import type { TrackingPrismaClient } from "./types";
 
-let trackingPrismaProvider: (() => Promise<TrackingPrismaClient>) | null =
-  null;
+let trackingPrismaProvider: (() => Promise<TrackingPrismaClient>) | null = null;
 
 /**
  * Host apps must call this once at startup (apps/optimitron's mcp-server and
@@ -38,8 +44,10 @@ let trackingPrismaProvider: (() => Promise<TrackingPrismaClient>) | null =
  */
 export function setTrackingPrismaProvider(
   provider: () => Promise<TrackingPrismaClient>,
+  unitConversion: TrackingUnitConversion,
 ) {
   trackingPrismaProvider = provider;
+  setTrackingUnitConversion(unitConversion);
 }
 
 async function getPrisma(): Promise<TrackingPrismaClient> {
@@ -540,14 +548,13 @@ async function ensureTrackingNOf1Variable(
     globalVariableId: string;
     subjectId: string;
     /**
-     * True only when the caller named a unit. A canonical-default fallback
-     * must never overwrite the user's persisted unit preference (set via
-     * updateTrackingVariableSettingsForUser or a previous explicit unit).
+     * True for explicit reminder preferences only. Measurement units never
+     * change the persisted preference.
      */
     unitExplicit: boolean;
   },
 ) {
-  return db.nOf1Variable.upsert({
+  const variable = await db.nOf1Variable.upsert({
     create: {
       defaultUnitId: input.defaultUnitId,
       fillingType: input.fillingType ?? FillingType.NONE,
@@ -555,7 +562,6 @@ async function ensureTrackingNOf1Variable(
       subjectId: input.subjectId,
     },
     update: {
-      ...(input.unitExplicit ? { defaultUnitId: input.defaultUnitId } : {}),
       ...(input.fillingType ? { fillingType: input.fillingType } : {}),
     },
     where: {
@@ -564,6 +570,109 @@ async function ensureTrackingNOf1Variable(
         subjectId: input.subjectId,
       },
     },
+  });
+  if (input.unitExplicit && variable.defaultUnitId !== input.defaultUnitId) {
+    const unit = await resolveTrackingUnit(db, { unitId: input.defaultUnitId });
+    if (!unit) throw new Error("Requested unit was not found.");
+    return changeTrackingUnitPreference(db, variable.id, unit);
+  }
+  return variable;
+}
+
+/** Serialize reads and writes of amounts that inherit one personal unit. */
+async function lockTrackingUnits(
+  tx: TrackingDbClient,
+  subjectId: string,
+  globalVariableId: string,
+) {
+  await tx.$queryRaw(PrismaSql.sql`
+    SELECT pg_advisory_xact_lock(hashtextextended(
+      'tracking-units:' || ${subjectId} || ':' || ${globalVariableId}, 0
+    ))::text
+  `);
+}
+
+async function lockReminderUnits(
+  tx: TrackingDbClient,
+  reminderId: string,
+  userId: string,
+) {
+  await tx.$queryRaw(PrismaSql.sql`
+    SELECT pg_advisory_xact_lock(hashtextextended(
+      'tracking-units:' || v."subjectId" || ':' || v."globalVariableId", 0
+    ))::text
+    FROM "TrackingReminder" r
+    JOIN "NOf1Variable" v ON v."id" = r."nOf1VariableId"
+    WHERE r."id" = ${reminderId} AND r."userId" = ${userId}
+  `);
+}
+
+async function lockNOf1TrackingUnits(
+  tx: TrackingDbClient,
+  nOf1VariableId: string,
+) {
+  await tx.$queryRaw(PrismaSql.sql`
+    SELECT pg_advisory_xact_lock(hashtextextended(
+      'tracking-units:' || "subjectId" || ':' || "globalVariableId", 0
+    ))::text FROM "NOf1Variable" WHERE "id" = ${nOf1VariableId}
+  `);
+}
+
+/** Keep every amount that inherits the personal unit in the same physical quantity. */
+async function changeTrackingUnitPreference(
+  tx: TrackingDbClient,
+  nOf1VariableId: string,
+  unit: TrackingUnitSummary,
+) {
+  await lockNOf1TrackingUnits(tx, nOf1VariableId);
+  const existing = await tx.nOf1Variable.findUniqueOrThrow({
+    where: { id: nOf1VariableId },
+    include: {
+      defaultUnit: true,
+      globalVariable: { include: { defaultUnit: true } },
+    },
+  });
+  const previousUnit =
+    existing.defaultUnit ?? existing.globalVariable.defaultUnit;
+  if (previousUnit.id === unit.id) return existing;
+  convertTrackingValue(1, unit, existing.globalVariable.defaultUnit);
+  const convert = (value: number | null) =>
+    value === null ? null : convertTrackingValue(value, previousUnit, unit);
+  const settings = {
+    defaultUnitId: unit.id,
+    fillingValue: convert(existing.fillingValue),
+    minimumAllowedValue: convert(existing.minimumAllowedValue),
+    maximumAllowedValue: convert(existing.maximumAllowedValue),
+  };
+  const reminders = await tx.trackingReminder.findMany({
+    where: { nOf1VariableId },
+    select: { id: true, defaultValue: true },
+  });
+  const receipt = await tx.trackingReminderNotification.findFirst({
+    where: {
+      trackingReminder: { nOf1VariableId },
+      trackedValue: { not: null },
+    },
+    select: { id: true },
+  });
+  if (receipt) {
+    throw new Error(
+      "Cannot safely change the preferred unit: reminder receipts have no unit metadata. Record or correct individual measurements with an explicit unit instead.",
+    );
+  }
+  // Validate all conversions before the first amount update. The caller owns the transaction.
+  const reminderChanges = reminders.map((row) => ({
+    id: row.id,
+    value: convert(row.defaultValue),
+  }));
+  for (const row of reminderChanges)
+    await tx.trackingReminder.update({
+      where: { id: row.id },
+      data: { defaultValue: row.value },
+    });
+  return tx.nOf1Variable.update({
+    where: { id: nOf1VariableId },
+    data: settings,
   });
 }
 
@@ -576,18 +685,30 @@ export async function recordTrackingMeasurementWithTx(
   const unitExplicit = Boolean(
     input.unitAbbreviation || input.unitId || input.unitName,
   );
+  await lockTrackingUnits(tx, subject.id, variable.id);
   const nOf1Variable = await ensureTrackingNOf1Variable(tx, {
-    defaultUnitId: unit.id,
+    defaultUnitId: variable.defaultUnitId,
     fillingType: input.fillingType,
     globalVariableId: variable.id,
     subjectId: subject.id,
-    unitExplicit,
+    unitExplicit: false,
   });
   // Without an explicit unit, record in the user's persisted default unit,
   // not the canonical one, so a settings-level unit choice actually applies.
   const unitId = unitExplicit
     ? unit.id
     : (nOf1Variable.defaultUnitId ?? unit.id);
+  const inputUnit =
+    unitId === unit.id ? unit : await resolveTrackingUnit(tx, { unitId });
+  if (!inputUnit)
+    throw new Error(
+      "Your preferred unit was not found. Pass an explicit unit.",
+    );
+  const normalized = normalizeTrackingMeasurement(
+    input.value,
+    inputUnit,
+    variable.defaultUnit,
+  );
   const startTime = input.startTime ?? new Date();
   const measurement = await tx.measurement.upsert({
     create: {
@@ -597,14 +718,11 @@ export async function recordTrackingMeasurementWithTx(
       longitude: input.longitude,
       nOf1VariableId: nOf1Variable.id,
       note: input.note,
-      originalUnitId: unitId,
-      originalValue: input.value,
+      ...normalized,
       recordedByUserId: input.userId,
       sourceName: input.sourceName ?? "mcp",
       startTime,
       subjectId: subject.id,
-      unitId,
-      value: input.value,
     },
     update: {
       deletedAt: null,
@@ -612,12 +730,9 @@ export async function recordTrackingMeasurementWithTx(
       latitude: input.latitude,
       longitude: input.longitude,
       note: input.note,
-      originalUnitId: unitId,
-      originalValue: input.value,
+      ...normalized,
       recordedByUserId: input.userId,
       sourceName: input.sourceName ?? "mcp",
-      unitId,
-      value: input.value,
     },
     where: {
       subjectId_globalVariableId_startTime: {
@@ -671,7 +786,10 @@ async function findOwnedMeasurementForMutation(
       id: true,
       nOf1VariableId: true,
       originalUnitId: true,
+      originalUnit: { select: TRACKING_UNIT_SELECT },
       unitId: true,
+      unit: { select: TRACKING_UNIT_SELECT },
+      globalVariable: { select: TRACKING_VARIABLE_SELECT },
     },
     where: {
       deletedAt: null,
@@ -707,18 +825,49 @@ export async function updateMeasurementForUser(
       measurementId,
       userId,
     );
-    if (
-      existing.originalUnitId !== existing.unitId &&
-      suppliedOriginalValue === undefined
-    ) {
+    const unitInput = parseTrackingVariableArgs(input);
+    const unitExplicit = Boolean(
+      unitInput.unitId || unitInput.unitAbbreviation || unitInput.unitName,
+    );
+    const requestedUnit = unitExplicit
+      ? await resolveTrackingUnit(tx, unitInput)
+      : null;
+    if (unitExplicit && !requestedUnit)
+      throw new Error("Requested unit was not found.");
+    if (unitExplicit && suppliedOriginalValue !== undefined) {
       throw new Error(
-        "originalValue is required because this measurement was converted between different units. Pass value in the normalized unit and originalValue in the original unit.",
+        "Pass value and a unit, or value and originalValue, not both forms.",
       );
+    }
+    const canonicalUnit = existing.globalVariable.defaultUnit;
+    const normalized = normalizeTrackingMeasurement(
+      value,
+      requestedUnit ?? existing.unit,
+      canonicalUnit,
+    );
+    if (!unitExplicit) {
+      const originalValue =
+        suppliedOriginalValue ??
+        convertTrackingValue(value, existing.unit, existing.originalUnit);
+      const convertedOriginal = convertTrackingValue(
+        originalValue,
+        existing.originalUnit,
+        canonicalUnit,
+      );
+      if (
+        Math.abs(convertedOriginal - normalized.value) >
+        1e-9 * Math.max(1, Math.abs(normalized.value))
+      ) {
+        throw new Error(
+          "originalValue does not match value after unit conversion.",
+        );
+      }
+      normalized.originalValue = originalValue;
+      normalized.originalUnitId = existing.originalUnitId;
     }
     const measurement = await tx.measurement.update({
       data: {
-        value,
-        originalValue: suppliedOriginalValue ?? value,
+        ...normalized,
         ...(input.duration !== undefined
           ? {
               duration: parseOptionalNonnegativeInteger(
@@ -867,6 +1016,7 @@ export async function upsertTrackingReminderForUser(
     const prisma = await getPrisma();
     try {
       return await prisma.$transaction(async (tx) => {
+        await lockReminderUnits(tx, trackingReminderId, userId);
         const existing = await tx.trackingReminder.findFirst({
           include: TRACKING_REMINDER_INCLUDE,
           where: {
@@ -887,8 +1037,13 @@ export async function upsertTrackingReminderForUser(
           appliedUnit = await resolveTrackingUnit(tx, unitInput);
           if (!appliedUnit) throw new Error("Requested unit was not found.");
         }
+        if (appliedUnit)
+          await changeTrackingUnitPreference(
+            tx,
+            existing.nOf1VariableId,
+            appliedUnit,
+          );
         const nOf1Update: Prisma.NOf1VariableUncheckedUpdateInput = {
-          ...(appliedUnit ? { defaultUnitId: appliedUnit.id } : {}),
           ...(fillingType ? { fillingType } : {}),
         };
         if (Object.keys(nOf1Update).length > 0) {
@@ -899,7 +1054,7 @@ export async function upsertTrackingReminderForUser(
         }
 
         let reminder =
-          Object.keys(update).length > 0
+          Object.keys(update).length > 0 || appliedUnit !== null
             ? await tx.trackingReminder.update({
                 data: update,
                 include: TRACKING_REMINDER_INCLUDE,
@@ -948,6 +1103,8 @@ export async function upsertTrackingReminderForUser(
     const subject = await trackingUserSubject(tx, userId);
     const variableArgs = parseTrackingVariableArgs(input);
     const { unit, variable } = await resolveTrackingVariable(tx, variableArgs);
+    convertTrackingValue(1, unit, variable.defaultUnit);
+    await lockTrackingUnits(tx, subject.id, variable.id);
     const nOf1Variable = await ensureTrackingNOf1Variable(tx, {
       defaultUnitId: unit.id,
       fillingType: variableArgs.fillingType,
@@ -955,8 +1112,8 @@ export async function upsertTrackingReminderForUser(
       subjectId: subject.id,
       unitExplicit: Boolean(
         variableArgs.unitAbbreviation ||
-          variableArgs.unitId ||
-          variableArgs.unitName,
+        variableArgs.unitId ||
+        variableArgs.unitName,
       ),
     });
     const reminder = await tx.trackingReminder.upsert({
@@ -986,8 +1143,7 @@ export async function upsertTrackingReminderForUser(
       include: TRACKING_REMINDER_INCLUDE,
       update: {
         active: typeof input.active === "boolean" ? input.active : true,
-        defaultValue:
-          parseOptionalFiniteNumberInput(input, "defaultValue") ?? null,
+        defaultValue: parseOptionalFiniteNumberInput(input, "defaultValue"),
         deletedAt: null,
         instructions: optionalString(input.instructions),
         nOf1VariableId: nOf1Variable.id,
@@ -1144,7 +1300,8 @@ export async function listMeasurementsForUser(
   }));
   return {
     measurements,
-    nextCursor: rows.length > limit ? (kept[kept.length - 1]?.id ?? null) : null,
+    nextCursor:
+      rows.length > limit ? (kept[kept.length - 1]?.id ?? null) : null,
     timeZone,
     variable,
   };
@@ -1293,12 +1450,17 @@ export async function updateTrackingVariableSettingsForUser(
         `Multiple variables match "${variableName}" case-insensitively. Use globalVariableId to disambiguate.`,
       );
     }
+    await lockNOf1TrackingUnits(tx, existing.id);
     if (hasUnitInput) {
       const unit = await resolveTrackingUnit(tx, unitInput);
       if (!unit) throw new Error("Requested unit was not found.");
-      update.defaultUnitId = unit.id;
+      await changeTrackingUnitPreference(tx, existing.id, unit);
     }
-    if (Object.keys(update).length === 0) return existing;
+    if (Object.keys(update).length === 0)
+      return tx.nOf1Variable.findUniqueOrThrow({
+        where: { id: existing.id },
+        select: TRACKING_NOF1_VARIABLE_SELECT,
+      });
     return tx.nOf1Variable.update({
       data: update,
       select: TRACKING_NOF1_VARIABLE_SELECT,
@@ -1464,6 +1626,8 @@ export async function listDueTrackingRemindersForUser(
             : status,
         fillingType: reminder.nOf1Variable.fillingType,
         globalVariable: reminder.globalVariable,
+        globalVariableId: reminder.globalVariableId,
+        nOf1VariableId: reminder.nOf1Variable.id,
         instructions: reminder.instructions,
         isOverdue,
         notification,
@@ -1525,13 +1689,18 @@ export function toCompactTrackingNotifications(result: {
   dateKey?: string;
   endDateKey?: string;
   notifications: Array<{
+    dateKey: string;
     defaultValue?: number | null;
     derivedStatus: NotificationStatus | TrackingReminderDerivedStatus;
     fillingType?: FillingType;
     globalVariable: { name: string };
+    globalVariableId: string;
+    nOf1VariableId: string;
     notifyAt: Date;
     notifyAtLocal: string;
     reminderId: string;
+    canRespond?: false;
+    responseUnavailableReason?: string;
     sameDayMeasurementCount?: number;
     unit?: string | null;
   }>;
@@ -1543,6 +1712,9 @@ export function toCompactTrackingNotifications(result: {
     ...(result.startDateKey ? { startDateKey: result.startDateKey } : {}),
     ...(result.endDateKey ? { endDateKey: result.endDateKey } : {}),
     notifications: result.notifications.map((notification) => ({
+      dateKey: notification.dateKey,
+      globalVariableId: notification.globalVariableId,
+      nOf1VariableId: notification.nOf1VariableId,
       // defaultValue and unit ride along so an agent can answer without a
       // second listTrackingReminders fetch (#249).
       defaultValue: notification.defaultValue ?? null,
@@ -1553,6 +1725,12 @@ export function toCompactTrackingNotifications(result: {
       fillingType: notification.fillingType ?? null,
       id: notification.reminderId,
       name: notification.globalVariable.name,
+      ...(notification.responseUnavailableReason
+        ? {
+            canRespond: false,
+            responseUnavailableReason: notification.responseUnavailableReason,
+          }
+        : {}),
       ...(notification.sameDayMeasurementCount
         ? { sameDayMeasurementCount: notification.sameDayMeasurementCount }
         : {}),
@@ -1588,6 +1766,14 @@ function storedTrackingNotificationToQueueItem(
   const reminder = notification.trackingReminder;
   const notifyAt = notification.notifyAt;
   const dateKey = getZonedDateKey(notifyAt, timeZone);
+  const range = dayRange(dateKey, timeZone);
+  const canRespond =
+    reminder.active &&
+    reminder.deletedAt === null &&
+    (!reminder.stopTrackingDate || reminder.stopTrackingDate >= range.start) &&
+    Boolean(
+      reminderOccurrenceWithinRange(reminder, { ...range, dateKey, timeZone }),
+    );
   const snoozeElapsed =
     notification.status === NotificationStatus.SNOOZED &&
     notifyAt.getTime() <= Date.now();
@@ -1606,6 +1792,8 @@ function storedTrackingNotificationToQueueItem(
         : notification.status,
     fillingType: reminder.nOf1Variable.fillingType,
     globalVariable: reminder.globalVariable,
+    globalVariableId: reminder.globalVariableId,
+    nOf1VariableId: reminder.nOf1Variable.id,
     instructions: reminder.instructions,
     isOverdue,
     notification,
@@ -1619,6 +1807,13 @@ function storedTrackingNotificationToQueueItem(
     reminderEndTime: reminder.reminderEndTime,
     reminderFrequency: reminder.reminderFrequency,
     reminderId: reminder.id,
+    ...(!canRespond
+      ? {
+          canRespond: false as const,
+          responseUnavailableReason:
+            "This reminder is inactive or no longer scheduled on this date. Review its schedule before attempting a response.",
+        }
+      : {}),
     reminderStartTime: reminder.reminderStartTime,
     // A current schedule cannot reconstruct the historical scheduled instant
     // after the reminder was edited. Keep it null instead of inventing one.
@@ -1695,9 +1890,17 @@ export async function listTrackingReminderNotificationsForUser(
     where: { id: userId },
   });
   const timeZone = user?.timeZone ?? "UTC";
+  const today = getZonedDateKey(new Date(), timeZone);
+  const isBacklog =
+    status === TrackingReminderDerivedStatus.OVERDUE &&
+    [input.dateKey, input.startDateKey, input.endDateKey].every(
+      (value) => value === undefined || value === null || value === "",
+    );
   const dateKeys = trackingNotificationDateKeys(
-    input,
-    getZonedDateKey(new Date(), timeZone),
+    isBacklog
+      ? { startDateKey: shiftDateKey(today, -13), endDateKey: today }
+      : input,
+    today,
   );
   const dayResults = [];
   for (const dateKey of dateKeys) {
@@ -1730,7 +1933,20 @@ export async function listTrackingReminderNotificationsForUser(
       orderBy: [{ notifyAt: "asc" }],
       where: {
         deletedAt: null,
-        notifyAt: { gte: firstRange.start, lt: lastRange.end },
+        notifyAt: isBacklog
+          ? { lt: new Date() }
+          : { gte: firstRange.start, lt: lastRange.end },
+        ...(isBacklog
+          ? {
+              status: {
+                in: [
+                  NotificationStatus.PENDING,
+                  NotificationStatus.SENT,
+                  NotificationStatus.SNOOZED,
+                ],
+              },
+            }
+          : {}),
         userId,
       },
     });
@@ -1763,14 +1979,29 @@ export async function listTrackingReminderNotificationsForUser(
           (!status || notification.derivedStatus === status),
       )
       .sort(
-        (left, right) => left.notifyAt.getTime() - right.notifyAt.getTime(),
+        (left, right) =>
+          (isBacklog ? -1 : 1) *
+          (left.notifyAt.getTime() - right.notifyAt.getTime()),
       ),
     userId,
     timeZone,
-    { end: lastRange.end, start: firstRange.start },
+    {
+      end: lastRange.end,
+      start: new Date(
+        unmatchedStoredNotifications.reduce(
+          (earliest, item) =>
+            Math.min(
+              earliest,
+              dayRange(item.dateKey, timeZone).start.getTime(),
+            ),
+          firstRange.start.getTime(),
+        ),
+      ),
+    },
   );
-  const result =
-    dateKeys.length === 1
+  const result = isBacklog
+    ? { notifications, timeZone }
+    : dateKeys.length === 1
       ? { dateKey: dateKeys[0], notifications, timeZone }
       : {
           endDateKey: dateKeys[dateKeys.length - 1],
@@ -1780,9 +2011,19 @@ export async function listTrackingReminderNotificationsForUser(
         };
   // Compact is the default so queue-answering clients get the light shape
   // without knowing to ask; compact: false opts into the full records (#249).
-  return input.compact === false
-    ? result
-    : toCompactTrackingNotifications(result);
+  const response =
+    input.compact === false ? result : toCompactTrackingNotifications(result);
+  return isBacklog
+    ? {
+        ...response,
+        backlog: {
+          storedNotifications: "all outstanding dates",
+          generatedStartDateKey: dateKeys[0],
+          generatedEndDateKey: dateKeys[dateKeys.length - 1],
+          note: "Unstored schedule occurrences are generated only for this window. Use startDateKey/endDateKey to inspect earlier schedules.",
+        },
+      }
+    : response;
 }
 
 /**
@@ -1814,9 +2055,7 @@ async function annotateSameDayMeasurements<
     where: {
       deletedAt: null,
       globalVariableId: {
-        in: [
-          ...new Set(overdue.map((item) => item.globalVariable.id)),
-        ],
+        in: [...new Set(overdue.map((item) => item.globalVariable.id))],
       },
       startTime: { gte: range.start, lt: range.end },
       subject: { userId },
@@ -2243,6 +2482,7 @@ export async function respondToTrackingReminderForUser(
     getZonedDateKey(trackedAt ?? new Date(), timeZone),
   );
   return prisma.$transaction(async (tx) => {
+    await lockReminderUnits(tx, trackingReminderId, userId);
     const reminder = await tx.trackingReminder.findFirst({
       include: TRACKING_REMINDER_INCLUDE,
       where: {
@@ -2277,6 +2517,25 @@ export async function respondToTrackingReminderForUser(
     if (recordedAsZero) {
       assertZeroIsMeasurable(reminder.globalVariable);
     }
+    let defaultValue = cleanNumber(reminder.defaultValue);
+    const responseUnitArgs = parseTrackingVariableArgs(input);
+    if (
+      status === NotificationStatus.TRACKED &&
+      explicitValue === undefined &&
+      !recordedAsZero &&
+      (responseUnitArgs.unitId ||
+        responseUnitArgs.unitAbbreviation ||
+        responseUnitArgs.unitName)
+    ) {
+      const responseUnit = await resolveTrackingUnit(tx, responseUnitArgs);
+      if (!responseUnit) throw new Error("Requested unit was not found.");
+      if (defaultValue !== null)
+        defaultValue = convertTrackingValue(
+          defaultValue,
+          reminderEffectiveUnit(reminder)!,
+          responseUnit,
+        );
+    }
     const trackedValue =
       status === NotificationStatus.TRACKED
         ? recordedAsZero
@@ -2284,7 +2543,7 @@ export async function respondToTrackingReminderForUser(
             // the reminder's default dose, and never a value sent alongside
             // it. Anything else would contradict the recordedAsZero result.
             0
-          : (explicitValue ?? cleanNumber(reminder.defaultValue))
+          : (explicitValue ?? defaultValue)
         : null;
     if (status === NotificationStatus.TRACKED && trackedValue == null) {
       throw new Error(
@@ -2309,13 +2568,28 @@ export async function respondToTrackingReminderForUser(
               localDayEnd.getTime() - 1,
             ),
           );
+    let notificationValue = trackedValue;
+    if (
+      trackedValue !== null &&
+      (responseUnitArgs.unitId ||
+        responseUnitArgs.unitAbbreviation ||
+        responseUnitArgs.unitName)
+    ) {
+      const responseUnit = await resolveTrackingUnit(tx, responseUnitArgs);
+      if (!responseUnit) throw new Error("Requested unit was not found.");
+      notificationValue = convertTrackingValue(
+        trackedValue,
+        responseUnit,
+        reminderEffectiveUnit(reminder)!,
+      );
+    }
     const notification = await findOrCreateTrackingNotification(tx, {
       deferUntil,
       localDayEnd,
       localDayStart,
       notifyAt,
       status,
-      trackedValue,
+      trackedValue: notificationValue,
       trackingReminderId,
       userId,
     });
@@ -2376,4 +2650,3 @@ export async function respondToTrackingReminderForUser(
     };
   });
 }
-

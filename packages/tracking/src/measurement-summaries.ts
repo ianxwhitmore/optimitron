@@ -1,6 +1,4 @@
-// The package's only runtime Prisma import: the SQL template builders
-// (Prisma.sql/raw/join). Every other module imports Prisma types only; the
-// client connection itself is always injected by the host app.
+// Runtime Prisma use is limited to SQL template builders. Hosts inject the connection.
 import { Prisma } from "@optimitron/db";
 
 /**
@@ -29,7 +27,9 @@ export interface MeasurementSummaryRow {
  * `scripts/backfill-measurement-summaries.ts` reconciliation so the two can
  * never compute a variable's statistics differently.
  *
- * Requires the `Measurement` table to be aliased `m`.
+ * Requires Measurement as `m` and its GlobalVariable as `g`.
+ * Legacy rows in other units make numeric summaries unknown until repaired.
+ * Counts and date bounds remain available.
  *
  * - `COUNT(m."id")` rather than `COUNT(*)` so the backfill's LEFT JOIN scores
  *   a variable with no measurements as 0 instead of 1.
@@ -42,12 +42,12 @@ export interface MeasurementSummaryRow {
 const MEASUREMENT_SUMMARY_AGGREGATES = Prisma.sql`
   COUNT(m."id")::int AS "count",
   COUNT(DISTINCT m."value")::int AS "uniqueCount",
-  MIN(m."value") AS "minimumRecordedValue",
-  MAX(m."value") AS "maximumRecordedValue",
-  AVG(m."value") AS "mean",
-  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY m."value") AS "median",
-  VAR_POP(m."value") AS "variance",
-  STDDEV_POP(m."value") AS "standardDeviation",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN MIN(m."value") END AS "minimumRecordedValue",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN MAX(m."value") END AS "maximumRecordedValue",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN AVG(m."value") END AS "mean",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY m."value") END AS "median",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN VAR_POP(m."value") END AS "variance",
+  CASE WHEN BOOL_AND(m."unitId" = g."defaultUnitId") THEN STDDEV_POP(m."value") END AS "standardDeviation",
   MIN(m."startTime") AS "earliestStartTime",
   MAX(m."startTime") AS "latestStartTime"
 `;
@@ -67,6 +67,7 @@ async function aggregateMeasurements(
   const [summary] = await tx.$queryRaw<MeasurementSummaryRow[]>(Prisma.sql`
     SELECT ${MEASUREMENT_SUMMARY_AGGREGATES}
     FROM "Measurement" m
+    JOIN "GlobalVariable" g ON g."id" = m."globalVariableId"
     WHERE m."deletedAt" IS NULL AND ${scope}
   `);
   if (!summary) {
@@ -229,6 +230,7 @@ export function buildNOf1VariableSummaryQuery(ids: string[]) {
       n."id" AS "id",
       ${MEASUREMENT_SUMMARY_AGGREGATES}
     FROM "NOf1Variable" n
+    JOIN "GlobalVariable" g ON g."id" = n."globalVariableId"
     LEFT JOIN "Measurement" m
       ON m."nOf1VariableId" = n."id" AND m."deletedAt" IS NULL
     WHERE n."id" IN (${Prisma.join(ids)})

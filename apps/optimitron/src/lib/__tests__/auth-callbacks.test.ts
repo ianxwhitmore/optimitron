@@ -15,6 +15,7 @@ vi.mock("@/lib/env", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
     },
@@ -54,6 +55,7 @@ const callSession = (params: SessionParams) =>
   (authOptions.callbacks!.session as (p: unknown) => Promise<Session>)(params);
 
 const mockedFindUnique = vi.mocked(prisma.user.findUnique);
+const mockedFindFirst = vi.mocked(prisma.user.findFirst);
 
 const fullIdentityRow = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -168,6 +170,10 @@ describe("getConfiguredProviders", () => {
 });
 
 describe("authOptions.callbacks.session", () => {
+  beforeEach(() => {
+    mockedFindFirst.mockReset();
+  });
+
   it("copies token.id onto session.user.id", async () => {
     const session = await callSession({
       session: { user: {}, expires: "2099-01-01T00:00:00Z" } as Session,
@@ -175,5 +181,56 @@ describe("authOptions.callbacks.session", () => {
     });
 
     expect(session.user.id).toBe("user_123");
+  });
+
+  it("adds admin visibility to an existing session from the current user record", async () => {
+    mockedFindFirst.mockResolvedValueOnce({ isAdmin: true } as never);
+
+    const session = await callSession({
+      session: { user: {}, expires: "2099-01-01T00:00:00Z" } as Session,
+      token: { id: "user_123" },
+    });
+
+    expect(session.user.isAdmin).toBe(true);
+    expect(mockedFindFirst).toHaveBeenCalledWith({
+      where: { id: "user_123", deletedAt: null },
+      select: { isAdmin: true },
+    });
+  });
+
+  it("removes admin visibility on refresh after the role is revoked", async () => {
+    mockedFindFirst.mockResolvedValueOnce({ isAdmin: true } as never);
+    const session = await callSession({
+      session: { user: {}, expires: "2099-01-01T00:00:00Z" } as Session,
+      token: { id: "user_123", isAdmin: true },
+    });
+
+    mockedFindFirst.mockResolvedValueOnce({ isAdmin: false } as never);
+    const refreshedSession = await callSession({
+      session,
+      token: { id: "user_123", isAdmin: true },
+    });
+
+    expect(refreshedSession.user.isAdmin).toBe(false);
+  });
+
+  it("does not trust an admin claim for a missing or deleted user", async () => {
+    mockedFindFirst.mockResolvedValueOnce(null);
+    const session = await callSession({
+      session: { user: {}, expires: "2099-01-01T00:00:00Z" } as Session,
+      token: { id: "user_123", isAdmin: true },
+    });
+
+    expect(session.user.isAdmin).toBe(false);
+  });
+
+  it("does not expose admin navigation without an identified user", async () => {
+    const session = await callSession({
+      session: { user: {}, expires: "2099-01-01T00:00:00Z" } as Session,
+      token: { isAdmin: true },
+    });
+
+    expect(session.user.isAdmin).toBe(false);
+    expect(mockedFindFirst).not.toHaveBeenCalled();
   });
 });

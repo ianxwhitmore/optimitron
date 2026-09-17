@@ -21,6 +21,7 @@ export type VisualRoute = {
   /** UI source files whose rendered states this route is required to exercise. */
   covers?: string[];
   createTaskMode?: "person";
+  expectAdmin?: boolean;
   expectSettings?: boolean;
   /** The route is expected to render the app's 404 page. */
   expectNotFound?: boolean;
@@ -313,6 +314,7 @@ const PRIZE_PAGE_FILES = [
 ];
 
 const VISUAL_COVERS_BY_PATH = new Map<string, string[]>([
+  [ROUTES.admin, ["apps/optimitron/src/app/admin/page.tsx"]],
   [
     ROUTES.eos,
     [
@@ -366,6 +368,7 @@ const PRESIDENT_TASK_LIST_SELECTOR =
   '[data-visual-section="president-task-list"]';
 
 const REQUIRED_SELECTOR_BY_PATH = new Map<string, string>([
+  [ROUTES.admin, 'nav[aria-label="Admin tools"]'],
   [ROUTES.employees, PRESIDENT_TASK_LIST_SELECTOR],
   [ROUTES.eos, "h1"],
   [ROUTES.fixAi, "#next-hour"],
@@ -403,6 +406,15 @@ const VISUAL_PATH_OVERRIDE_BY_PATH = new Map<string, string>([
 ]);
 
 const SPECIAL_STATE_ROUTES: VisualRouteSpec[] = [
+  {
+    authenticated: true,
+    covers: ["apps/optimitron/src/app/admin/task-payouts/page.tsx"],
+    name: "admin-task-payouts",
+    path: "/admin/task-payouts",
+    required: true,
+    requiredSelector: "h1",
+    requiredText: /^Task payouts$/,
+  },
   {
     covers: [FOUNDATIONS_PAGE_FILE],
     name: "foundations-links",
@@ -483,18 +495,24 @@ const SPECIAL_STATE_ROUTES: VisualRouteSpec[] = [
     requiredText: /^INFRASTRUCTURE COLLAPSE$/,
   },
   {
+    covers: ["apps/optimitron/src/components/Navbar.tsx"],
+    expectAdmin: false,
     name: "side-menu",
     path: ROUTES.home,
     required: true,
     openMenu: true,
+    requiredSelector: '[role="dialog"]',
   },
   {
+    covers: ["apps/optimitron/src/components/Navbar.tsx"],
+    expectAdmin: true,
     name: "side-menu-auth",
     path: ROUTES.home,
     required: true,
     authenticated: true,
     openMenu: true,
     expectSettings: true,
+    requiredSelector: '[role="dialog"]',
   },
   {
     name: "create-task-dialog-person",
@@ -788,6 +806,18 @@ function loadMcpAuthorizeRoutes(): VisualRouteSpec[] {
   }
 
   return [
+    {
+      authenticated: true,
+      authenticatedEmail: manifest.nonAdminEmail,
+      covers: ["apps/optimitron/src/components/Navbar.tsx"],
+      expectAdmin: false,
+      expectSettings: true,
+      name: "side-menu-non-admin",
+      openMenu: true,
+      path: ROUTES.home,
+      required: true,
+      requiredSelector: '[role="dialog"]',
+    },
     {
       authenticated: true,
       covers: [
