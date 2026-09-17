@@ -14,7 +14,9 @@ beforeEach(() => {
   mocks.findGrant.mockReset();
   mocks.revokeGrant.mockReset();
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 it("revokes the hash-bound Court grant without a resource parameter, even with issuance disabled", async () => {
   const hash = hashRefreshToken("court-refresh");

@@ -60,7 +60,9 @@ beforeEach(() => {
   vi.stubEnv("MCP_COURT_SIGNING_KEY_ID", "test-court");
   vi.stubEnv("MCP_COURT_SIGNING_PUBLIC_JWKS", JSON.stringify(publicJwks));
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 const verify = (token: string) =>
   verifyCourtMcpAccessToken(token, {
     issuer,
