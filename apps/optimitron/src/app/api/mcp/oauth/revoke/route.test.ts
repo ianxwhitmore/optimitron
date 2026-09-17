@@ -16,6 +16,22 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+
+it("logs a generic failure without database or token details", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  mocks.findGrant.mockRejectedValueOnce(new Error("private credential detail"));
+  const response = await POST(
+    new Request("https://optimitron.com/api/mcp/oauth/revoke", {
+      method: "POST",
+      body: new URLSearchParams({ token: "private-token" }),
+    }),
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: "server_error" });
+  expect(log).toHaveBeenCalledWith("[oauth/revoke] unexpected failure");
+  expect(JSON.stringify(log.mock.calls)).not.toContain("private");
 });
 
 it("revokes the hash-bound Court grant without a resource parameter, even with issuance disabled", async () => {

@@ -52,7 +52,8 @@ export async function POST(req: Request) {
 
     // Per RFC 7009, always return 200 regardless of whether the token was found
     return NextResponse.json({ active: false });
-  } catch (error) {
+  } catch {
+    console.error("[oauth/revoke] unexpected failure");
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
