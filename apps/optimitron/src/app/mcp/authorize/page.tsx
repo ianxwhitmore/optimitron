@@ -61,8 +61,6 @@ export default async function McpAuthorizePage({
       : scopesToWire(DEFAULT_CONSENT_SCOPES);
   const codeChallenge =
     typeof params.code_challenge === "string" ? params.code_challenge : null;
-  const clientName =
-    typeof params.client_name === "string" ? params.client_name : clientId;
 
   if (!clientId || !redirectUri || !codeChallenge) {
     return invalidRequest("Missing required OAuth parameters.");
@@ -73,11 +71,12 @@ export default async function McpAuthorizePage({
   // for an unregistered redirect target is an open redirect.
   const client = await prisma.oAuthClient.findUnique({
     where: { clientId },
-    select: { redirectUris: true },
+    select: { redirectUris: true, clientName: true },
   });
   if (!client) {
     return invalidRequest("Unknown OAuth client.");
   }
+  const clientName = client.clientName ?? clientId;
   if (!isRedirectUriAllowed(client.redirectUris, redirectUri)) {
     return invalidRequest("Redirect URI is not registered for this client.");
   }
@@ -155,10 +154,16 @@ export default async function McpAuthorizePage({
             Authorize App
           </h1>
           <p className="font-bold text-muted-foreground mb-6">
-            <span className="text-foreground">{clientName}</span> wants to
-            access your Optimitron account. Tick the permissions you want to
-            grant.
+            <span className="text-foreground">{clientName}</span>{" "}
+            {resource === LEGACY_MCP_RESOURCE
+              ? "wants to access your Optimitron account. Tick the permissions you want to grant."
+              : "wants to access Court of Humanity with your Optimitron account. Tick the permissions you want to grant."}
           </p>
+          {resource !== LEGACY_MCP_RESOURCE && (
+            <p className="text-sm font-bold text-muted-foreground mb-6 break-all">
+              Resource: {resource}
+            </p>
+          )}
 
           <McpConsentForm
             resource={requestedResource}
