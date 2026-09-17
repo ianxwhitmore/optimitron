@@ -50,9 +50,8 @@ function isAuthenticatedPage(filePath: string) {
 
 test("every internal site-app navigation route has a Next.js page", async (t) => {
   const { ROUTES } = await import("../packages/site-kit/src/lib/routes.ts");
-  const { getInternalNavigationRoutesForVariant, VARIANTS } = await import(
-    "../packages/site-kit/src/lib/site-config.ts"
-  );
+  const { getInternalNavigationRoutesForVariant } = await import("./site-app-navigation.ts");
+  const { VARIANTS } = await import("../packages/site-kit/src/lib/site-variant-types.ts");
   const apps = [
     ["warondisease", VARIANTS.WAR_ON_DISEASE],
     ["dfda", VARIANTS.DFDA],
@@ -129,7 +128,7 @@ test("every site-app page is captured by the visual review or has a documented e
     publicSiteAppRouteExemptions,
   } = await import("./site-app-visual-routes.mjs");
   const { VARIANTS } = await import(
-    "../packages/site-kit/src/lib/site-config.ts"
+    "../packages/site-kit/src/lib/site-variant-types.ts"
   );
   const apps = [
     ["warondisease", VARIANTS.WAR_ON_DISEASE],

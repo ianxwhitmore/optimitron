@@ -1,7 +1,7 @@
-import {
-  getInternalNavigationRoutesForVariant,
-  VARIANTS,
-} from "../packages/site-kit/src/lib/site-config.ts";
+import * as navigationInventoryModule from "./site-app-navigation.ts";
+import { VARIANTS } from "../packages/site-kit/src/lib/site-variant-types.ts";
+
+const { getInternalNavigationRoutesForVariant } = navigationInventoryModule.default ?? navigationInventoryModule;
 
 const campaignPlanPageFile =
   "packages/site-kit/src/components/campaign-plan-page.tsx";
@@ -98,7 +98,8 @@ function getAuthenticatedMenuRoute(appName) {
     covers: [
       sourcePage,
       "packages/site-kit/src/components/layout.tsx",
-      "packages/site-kit/src/lib/nav-items.ts",
+      `apps/${appName}/lib/navigation.ts`,
+      "packages/site-kit/src/lib/app-navigation.ts",
     ],
     label: "Navigation menu — signed-in user",
     openMenu: true,
@@ -129,7 +130,7 @@ function getAdminRoutes(appName) {
   return [page, {
     ...page,
     captureSelector: '[role="dialog"]',
-    covers: [...page.covers, "packages/site-kit/src/components/layout.tsx"],
+    covers: [...page.covers, "packages/site-kit/src/components/layout.tsx", `apps/${appName}/lib/navigation.ts`, "packages/site-kit/src/lib/app-navigation.ts"],
     expectAdmin: true,
     label: "Navigation menu — administrator",
     openMenu: true,
@@ -1270,6 +1271,7 @@ export function getSiteAppScreenshotRoutes(appName, siteVariant) {
           ? [
               `apps/${appName}/app/layout.tsx`,
               `apps/${appName}/app/globals.css`,
+              `apps/${appName}/lib/navigation.ts`,
             ]
           : []),
       ]),
