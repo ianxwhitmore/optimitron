@@ -13,10 +13,14 @@ describe("same-path app ownership", () => {
     expect(getPageMetadata("campaignMcp").alternates?.canonical).toBe("https://warondisease.org/mcp");
   });
 
+  it("redirects non-owning apps to the first canonical MCP owner", () => {
+    expect(getCanonicalRedirect("/mcp", VARIANTS.WISHOCRACY)).toBe("https://warondisease.org/mcp");
+    expect(isRouteAllowedForVariant("/mcp", VARIANTS.WISHOCRACY)).toBe(false);
+  });
+
   it("still redirects routes owned exclusively by another app", () => {
     expect(getCanonicalRedirect("/wishocracy", VARIANTS.DFDA)).toBe("https://wishocracy.org/wishocracy");
     expect(isRouteAllowedForVariant("/wishocracy", VARIANTS.DFDA)).toBe(false);
     expect(getCanonicalRedirect("/conditions/example", VARIANTS.DFDA)).toBeNull();
   });
 });
-
