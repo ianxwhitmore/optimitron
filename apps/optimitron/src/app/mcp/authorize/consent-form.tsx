@@ -46,6 +46,19 @@ const SCOPE_LABELS: Record<McpScope, { title: string; detail: string }> = {
   },
 };
 
+const COURT_SCOPE_LABELS: Partial<typeof SCOPE_LABELS> = {
+  [McpScope.EARTHDATA_WRITE]: {
+    title: "Manage your Court cases",
+    detail:
+      "Create cases and manage your own case records. Public-case moderation requires administrator scope.",
+  },
+  [McpScope.EARTHDATA_ADMIN]: {
+    title: "Moderate public Court cases",
+    detail:
+      "Moderate public Court cases. This does not grant access to other people's private cases.",
+  },
+};
+
 export function McpConsentForm({
   clientId,
   redirectUri,
@@ -56,6 +69,7 @@ export function McpConsentForm({
   codeChallenge,
   initialOrganizationIds,
   resource,
+  isCourtResource = false,
 }: {
   clientId: string;
   redirectUri: string;
@@ -71,6 +85,7 @@ export function McpConsentForm({
   codeChallenge: string;
   initialOrganizationIds: string[];
   resource?: string;
+  isCourtResource?: boolean;
 }) {
   const [selected, setSelected] = useState<Set<McpScope>>(
     () => new Set(requestedScopes.filter((s) => availableScopes.includes(s))),
@@ -167,7 +182,9 @@ export function McpConsentForm({
       <h2 className="text-sm font-black uppercase mb-3">Permissions</h2>
       <ul className="space-y-3 mb-6">
         {availableScopes.map((scope) => {
-          const labels = SCOPE_LABELS[scope];
+          const labels =
+            (isCourtResource ? COURT_SCOPE_LABELS[scope] : undefined) ??
+            SCOPE_LABELS[scope];
           const checked = selected.has(scope);
           const wasRequested = requestedScopes.includes(scope);
           return (

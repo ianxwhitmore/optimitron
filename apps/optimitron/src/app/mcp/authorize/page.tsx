@@ -167,6 +167,7 @@ export default async function McpAuthorizePage({
 
           <McpConsentForm
             resource={requestedResource}
+            isCourtResource={resource !== LEGACY_MCP_RESOURCE}
             clientId={clientId}
             redirectUri={redirectUri}
             state={state}
