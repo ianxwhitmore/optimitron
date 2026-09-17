@@ -22,7 +22,7 @@ vi.mock("@/lib/referral.server", () => ({
 vi.mock("@/lib/logger", () => ({ createLogger: () => ({ error() {} }) }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    referendum: { findUnique: mocks.referendum },
+    referendum: { findFirst: mocks.referendum },
     referendumVote: { upsert: mocks.vote },
     person: {
       findUnique: async () => ({ displayName: "Plaintiff", isPublic: false }),
@@ -86,6 +86,7 @@ describe("Court-owned verdict votes", () => {
     expect(mocks.enroll).not.toHaveBeenCalled();
   });
   it("leaves treaty votes with the campaign owner", async () => {
+    mocks.referendum.mockResolvedValue(null);
     expect((await vote("YES", "one-percent-treaty")).status).toBe(404);
     expect(mocks.vote).not.toHaveBeenCalled();
   });

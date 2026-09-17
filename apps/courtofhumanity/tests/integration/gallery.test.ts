@@ -182,6 +182,10 @@ describe("Public Court gallery privacy", () => {
     expect((await getHumanityVGovernmentVerdictStats()).yesCount).toBe(0);
   });
   it("rolls back HTTP verdict and profile writes when private enrollment belongs to another actor", async () => {
+    await prisma.referendum.update({
+      where: { slug: HUMANITY_V_GOVERNMENT_VERDICT_REFERENDUM_SLUG },
+      data: { publishedAt: new Date() },
+    });
     await prisma.user.create({
       data: { id: `${PREFIX}other`, email: `${PREFIX}other@example.invalid` },
     });

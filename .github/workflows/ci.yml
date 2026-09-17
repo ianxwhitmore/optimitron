@@ -176,6 +176,7 @@ jobs:
               - 'packages/data/**'
               - 'packages/db/**'
               - 'packages/impact-params/**'
+              - 'packages/mcp/**'
               - 'packages/neobrutalist-ui/**'
               - 'packages/optimizer/**'
               - 'packages/site-kit/**'

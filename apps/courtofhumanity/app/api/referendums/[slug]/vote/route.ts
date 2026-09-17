@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { ensurePersonForUser } from "@/lib/person.server";
 import { findUserByHandleOrReferralCode } from "@/lib/referral.server";
 import { createLogger } from "@/lib/logger";
+import { getPublicCourtVotingReferendum } from "@/lib/court-jury-voting.server";
 import { COURT_OF_HUMANITY_SLUG } from "@/lib/court-of-humanity";
 import { ensureHumanityVGovernmentPlaintiffParty } from "@/lib/humanity-v-government-case.server";
 import { ensureSubjectForPerson } from "@/lib/subject.server";
@@ -20,19 +21,14 @@ const log = createLogger("referendum-vote");
 
 /**
  * Court of Humanity vote endpoint, ported from the monolith's
- * `/api/referendums/[slug]/vote`. Scoped to the two referendums this app
- * serves (the Humanity v. Government verdict and Court of Humanity
- * membership) so the treaty flow — with its wish grants, badges, referral
+ * `/api/referendums/[slug]/vote`. Serves published public Court case ballots
+ * and the canonical Court membership/verdict ballots. The treaty flow
+ * — with its wish grants, badges, referral
  * point mints, invitation conversions, and post-vote emails — stays on the
  * app that owns those systems. Votes recorded here land in the same
  * `ReferendumVote` table, and YES verdicts still register the voter as a
  * named plaintiff on the case.
  */
-
-const SERVED_REFERENDUM_SLUGS = new Set<string>([
-  COURT_OF_HUMANITY_SLUG,
-  HUMANITY_V_GOVERNMENT_VERDICT_REFERENDUM_SLUG,
-]);
 
 export async function POST(
   request: Request,
@@ -41,13 +37,6 @@ export async function POST(
   try {
     const { userId } = await requireAuth();
     const { slug } = await params;
-
-    if (!SERVED_REFERENDUM_SLUGS.has(slug)) {
-      return NextResponse.json(
-        { error: "Referendum not found" },
-        { status: 404 },
-      );
-    }
 
     const body = (await request.json()) as {
       answer: string;
@@ -81,9 +70,7 @@ export async function POST(
     const makePublic =
       typeof body.makePublic === "boolean" ? body.makePublic : true;
 
-    const referendum = await prisma.referendum.findUnique({
-      where: { slug, deletedAt: null },
-    });
+    const referendum = await getPublicCourtVotingReferendum(slug);
 
     if (!referendum) {
       return NextResponse.json(
@@ -144,10 +131,18 @@ export async function POST(
       // lists. The vote keeps its own public flag so users can hide a specific
       // signature without changing old private votes into public signatories.
       const personUpdateData: { displayName?: string; isPublic?: boolean } = {};
-      if (submittedDisplayName && submittedDisplayName !== person.displayName) {
+      const updatesProfile =
+        referendum.slug === COURT_OF_HUMANITY_SLUG ||
+        referendum.slug === HUMANITY_V_GOVERNMENT_VERDICT_REFERENDUM_SLUG;
+      if (
+        updatesProfile &&
+        submittedDisplayName &&
+        submittedDisplayName !== person.displayName
+      ) {
         personUpdateData.displayName = submittedDisplayName;
       }
       if (
+        updatesProfile &&
         typeof body.makePublic === "boolean" &&
         person.isPublic !== makePublic
       ) {
@@ -224,17 +219,7 @@ export async function GET(
     const { userId } = await requireAuth();
     const { slug } = await params;
 
-    if (!SERVED_REFERENDUM_SLUGS.has(slug)) {
-      return NextResponse.json(
-        { error: "Referendum not found" },
-        { status: 404 },
-      );
-    }
-
-    const referendum = await prisma.referendum.findUnique({
-      where: { slug, deletedAt: null },
-      select: { id: true },
-    });
+    const referendum = await getPublicCourtVotingReferendum(slug);
     if (!referendum) {
       return NextResponse.json(
         { error: "Referendum not found" },
