@@ -89,11 +89,12 @@ const warOnDiseaseDashboardFiles = [
 ];
 
 function getAuthenticatedMenuRoute(appName) {
-  const sourcePage = `apps/${appName}/app/dashboard/page.tsx`;
+  const sourcePage = `apps/${appName}/app/contact/page.tsx`;
 
   return {
     authenticated: true,
     authRole: "user",
+    expectAdmin: false,
     captureSelector: '[role="dialog"]',
     covers: [
       sourcePage,
@@ -104,7 +105,7 @@ function getAuthenticatedMenuRoute(appName) {
     label: "Navigation menu — signed-in user",
     openMenu: true,
     routeName: "navigation-menu-authenticated",
-    routePath: "/dashboard",
+    routePath: "/contact",
     sourcePage,
   };
 }
