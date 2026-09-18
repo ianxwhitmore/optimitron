@@ -35,12 +35,9 @@ import type { ChildProcess } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import type { SiteVariant } from "../packages/site-kit/src/lib/site-config";
-import {
-  getInternalNavigationRoutesForVariant,
-  getSiteConfigForVariant,
-  VARIANTS,
-} from "../packages/site-kit/src/lib/site-config";
+import { VARIANTS, type SiteVariant } from "../packages/site-kit/src/lib/site-variant-types";
+import { getInternalNavigationRoutesForVariant } from "./site-app-navigation";
+import { getSiteConfigForVariant } from "../packages/site-kit/src/lib/site-config";
 import { buildCopyPreviewMarkdown } from "../apps/optimitron/src/lib/copy-preview-markdown";
 import { extractVisibleCopyMarkdown } from "./lib/copy-preview-dom";
 import {
@@ -103,7 +100,7 @@ interface Site {
   port: number;
   /**
    * `own` sites delegate to their package's renderer; `nav` sites are rendered
-   * here from their site-config navigation routes.
+   * here from their app-local navigation routes.
    */
   renderer: "own" | "nav";
   variant: SiteVariant;
@@ -408,7 +405,7 @@ function publicSnapshotRoutes(site: Site): string[] {
     .map((route) => route.routePath);
 }
 
-/** Sites in `apps/` — routes come from their site-config navigation. */
+/** Sites in `apps/` — routes come from their app-local navigation. */
 async function snapshotNavRoutes(site: Site, baseUrl: string): Promise<void> {
   const routes = [
     ...new Set([
