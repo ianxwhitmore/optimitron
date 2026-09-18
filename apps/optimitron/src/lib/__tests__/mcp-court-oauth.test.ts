@@ -225,7 +225,8 @@ describe("Court resource credentials", () => {
   it.each([undefined, "development", "preview"])(
     "rejects Court authorization without a configured resource in %s",
     async (environment) => {
-      vi.stubEnv("VERCEL_ENV", environment);
+      vi.stubEnv("VERCEL_ENV", environment ?? "");
+      if (environment === undefined) delete process.env.VERCEL_ENV;
       vi.stubEnv("MCP_COURT_RESOURCE", "");
       expect(() => courtMcpResource(environment)).toThrow();
       expect(() => resolveOAuthResource(COURT_MCP_RESOURCE)).toThrow();
