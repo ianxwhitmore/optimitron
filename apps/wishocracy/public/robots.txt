@@ -9,4 +9,3 @@ Disallow: /profile
 Disallow: /settings
 Disallow: /_next
 
-Sitemap: https://wishocracy.org/sitemap.xml
