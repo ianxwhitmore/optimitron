@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { getInternalNavigationRoutes, visibleNavigationItems, type AppNavigation } from "../../../../packages/site-kit/src/lib/app-navigation";
+import { appNavigation as acceleratedMedicine } from "../../../acceleratedmedicine/lib/navigation";
+import { appNavigation as campaign } from "../../lib/navigation";
 
 describe("app navigation boundaries", () => {
   const admin = { id: "admin", label: "Admin", path: "/admin", adminOnly: true };
+
+  it.each([
+    acceleratedMedicine.topLevelItems,
+    acceleratedMedicine.footerSections.find((section) => section.id === "support")!.resolvedItems,
+    campaign.footerSections.find((section) => section.id === "do-something")!.resolvedItems,
+  ])("restores donation menu entries when the feature is enabled", (...items) => {
+    expect(visibleNavigationItems(items, false, false).some((item) => item.id === "donate")).toBe(false);
+    expect(visibleNavigationItems(items, false, true).find((item) => item.id === "donate")?.path).toBe("/donate");
+  });
 
   it("shows restricted links only to administrators", () => {
     const publicLink = { id: "about", label: "About", path: "/about" };

@@ -32,6 +32,14 @@ export const appNavigation: AppNavigation = {
       "path": "/impact",
       "description": "See how Right to Trial can help patients join low-cost trials and find effective treatments sooner.",
       "emoji": "⚡"
+    },
+    {
+      "id": "donate",
+      "label": "Donate",
+      "path": "/donate",
+      "description": "Fund patient education, pragmatic-trial research, and public treatment evidence.",
+      "emoji": "💝",
+      "feature": "donate"
     }
   ],
   "sidebarSections": [],
@@ -104,6 +112,14 @@ export const appNavigation: AppNavigation = {
       "id": "support",
       "label": "SUPPORT",
       "resolvedItems": [
+        {
+          "id": "donate",
+          "label": "Donate",
+          "path": "/donate",
+          "description": "Fund patient education, pragmatic-trial research, and public treatment evidence.",
+          "emoji": "💝",
+          "feature": "donate"
+        },
         {
           "id": "volunteer",
           "label": "Volunteer",

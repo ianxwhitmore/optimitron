@@ -100,6 +100,14 @@ export const appNavigation: AppNavigation = {
           "isExternal": true
         },
         {
+          "id": "donate",
+          "label": "Donate",
+          "path": "/donate",
+          "description": "Fund patient education, pragmatic-trial research, and public treatment evidence.",
+          "emoji": "💝",
+          "feature": "donate"
+        },
+        {
           "id": "feedback",
           "label": "Feedback",
           "path": "/feedback",

@@ -1,3 +1,5 @@
+import { SHOW_DONATE_LINKS } from "./navigation-features";
+
 /** App-owned links consumed by the shared navigation UI. URLs are explicit. */
 export interface NavigationItem {
   id: string;
@@ -9,6 +11,7 @@ export interface NavigationItem {
   requiresScrollHandler?: boolean;
   isExternal?: boolean;
   adminOnly?: boolean;
+  feature?: "donate";
 }
 
 export interface NavigationSection {
@@ -24,8 +27,8 @@ export interface AppNavigation {
   legalItems: NavigationItem[];
 }
 
-export function visibleNavigationItems(items: NavigationItem[], isAdmin: boolean) {
-  return items.filter((item) => !item.adminOnly || isAdmin);
+export function visibleNavigationItems(items: NavigationItem[], isAdmin: boolean, showDonateLinks = SHOW_DONATE_LINKS) {
+  return items.filter((item) => (!item.adminOnly || isAdmin) && (item.feature !== "donate" || showDonateLinks));
 }
 
 /** Inventory public internal routes without inferring ownership across apps. */

@@ -70,7 +70,7 @@
  * - trialabundancesurvey.org: Minimal (reduce intimidation factor)
  * - dfda.earth: Treatment-first (clinical decision support)
  *
- * The navigation system uses:
+ * Each app's lib/navigation.ts supplies AppNavigation to the shared UI:
  * - topLevelItems: Outside accordion, always visible
  * - sidebarSections: Accordion sections with grouped items
  * - footerSections: Footer column organization
@@ -191,7 +191,8 @@ export const ALL_PUBLIC_SITE_FEATURES = Object.freeze(
 
 // Donate entry points are hidden on every variant for now. The /donate pages,
 // routes, and nav items stay alive so restoring the links is one flag flip.
-export const SHOW_DONATE_LINKS = false;
+export { SHOW_DONATE_LINKS } from "./navigation-features";
+import { SHOW_DONATE_LINKS } from "./navigation-features";
 
 const HIDDEN_NAV_ITEM_IDS: ReadonlySet<NavItemId> = new Set<NavItemId>(
   SHOW_DONATE_LINKS ? [] : ["donate"],
