@@ -54,6 +54,7 @@ try {
       where: { email: DEMO_EMAIL },
       select: {
         id: true,
+        password: true,
         organizationMemberships: {
           where: {
             organization: { slug: DEMO_ORGANIZATION_SLUG },
@@ -91,6 +92,19 @@ try {
     MILITARY_ITEM_ID,
     PRAGMATIC_TRIALS_ITEM_ID,
   ]);
+
+  // A separate local-only account exercises regular-user menu visibility.
+  // Keep the managed demo admin for existing dashboard/organization fixtures.
+  await prisma.user.upsert({
+    where: { email: "visual-member@example.invalid" },
+    update: { isAdmin: false, password: user.password, deletedAt: null },
+    create: {
+      email: "visual-member@example.invalid",
+      password: user.password,
+      emailVerified: VISUAL_FIXTURE_CREATED_AT,
+      isAdmin: false,
+    },
+  });
 
   await prisma.$transaction([
     prisma.organization.updateMany({

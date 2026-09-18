@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
-import * as Sentry from "@sentry/nextjs";
 import { DM_Sans, Source_Serif_4, Space_Mono } from "next/font/google";
 import Script from "next/script";
 import type { ReactNode } from "react";
 
 import { getSiteConfig } from "../lib/site-config";
-import { getBaseUrl } from "../lib/url";
 import { Providers } from "./providers";
+import { NavigationProvider } from "./navigation-provider";
+import type { AppNavigation } from "../lib/app-navigation";
+
+export { buildSiteMetadata } from "../lib/site-metadata";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -37,49 +38,10 @@ const sourceSerif = Source_Serif_4({
 
 const fontVariables = `${dmSans.variable} ${spaceMono.variable} ${sourceSerif.variable}`;
 
-export function buildSiteMetadata(): Metadata {
-  const config = getSiteConfig();
-  const baseUrl = getBaseUrl();
-  const title = config.ogMetadata.title || config.title;
-  const description = config.ogMetadata.description || config.description;
-
-  return {
-    title: config.title,
-    description: config.description,
-    metadataBase: new URL(baseUrl),
-    alternates: { canonical: config.canonicalUrl || baseUrl },
-    icons: config.icons,
-    openGraph: {
-      type: "website",
-      locale: "en_US",
-      url: baseUrl,
-      siteName: config.title,
-      title,
-      description,
-      images: [
-        {
-          url: config.ogMetadata.image,
-          width: config.ogMetadata.width,
-          height: config.ogMetadata.height,
-          alt: config.ogMetadata.alt || config.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [config.ogMetadata.twitterImage?.url || config.ogMetadata.image],
-    },
-    other: {
-      ...Sentry.getTraceData(),
-    },
-  };
-}
-
 export function SiteRootLayout({
   children,
-}: Readonly<{ children: ReactNode }>) {
+  navigation,
+}: Readonly<{ children: ReactNode; navigation: AppNavigation }>) {
   const config = getSiteConfig();
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const analyticsScript = gaId
@@ -90,7 +52,7 @@ export function SiteRootLayout({
     <html lang="en">
       <body className={`font-sans antialiased ${fontVariables}`}>
         <Providers authEnabled={config.authEnabled !== false}>
-          {children}
+          <NavigationProvider navigation={navigation}>{children}</NavigationProvider>
         </Providers>
         {process.env.VERCEL ? (
           <Script
