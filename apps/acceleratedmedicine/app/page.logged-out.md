@@ -4,10 +4,10 @@
 
 - Page title: Right to Trial Initiative
 - Meta description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
-- Canonical: http://localhost:3016
+- Canonical: https://acceleratedmedicine.org
 - Open Graph title: Right to Trial Initiative
 - Open Graph description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
-- Open Graph image: http://localhost:3016/assets/acceleratedmedicine/iam-og-1200x630.png
+- Open Graph image: https://acceleratedmedicine.org/assets/acceleratedmedicine/iam-og-1200x630.png
 - Twitter title: Right to Trial Initiative
 - Twitter description: Right to Trial for every patient, with pragmatic clinical trials and public results that show which treatments work.
 
