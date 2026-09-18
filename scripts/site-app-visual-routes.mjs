@@ -320,6 +320,14 @@ export const authenticatedSiteAppRoutes = Object.freeze({
     },
   ],
   courtofhumanity: [
+    {
+      covers: ["apps/courtofhumanity/app/not-found.tsx"],
+      expectNotFound: true,
+      label: "Page not found",
+      routeName: "not-found",
+      routePath: "/this-page-does-not-exist",
+      sourcePage: "apps/courtofhumanity/app/not-found.tsx",
+    },
     ...getAdminRoutes("courtofhumanity"),
     getAuthenticatedMenuRoute("courtofhumanity"),
     {
