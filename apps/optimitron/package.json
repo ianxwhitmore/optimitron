@@ -26,7 +26,7 @@
     "typecheck:app": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.next.json",
     "typecheck:tests": "cross-env NODE_OPTIONS=--max-old-space-size=6144 tsc --noEmit --project tsconfig.tests.json",
     "typecheck:full": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
-    "test": "node --test e2e/utils/visual-settle.test.mjs scripts/visual-review-coverage.test.mjs scripts/visual-capture-contract.test.mjs && pnpm exec vitest run --maxWorkers=4 --minWorkers=1",
+    "test": "node --test e2e/helpers/freeze-clock.test.mjs e2e/utils/visual-settle.test.mjs scripts/visual-review-coverage.test.mjs scripts/visual-capture-contract.test.mjs scripts/visual-review-scope.test.mjs scripts/visual-review-copy.test.mjs && pnpm exec vitest run --maxWorkers=4 --minWorkers=1",
     "generate": "tsx scripts/generate-web-data.ts",
     "fetch": "tsx scripts/fetch-and-generate.ts",
     "causal": "tsx scripts/generate-causal-reports.ts",
@@ -161,7 +161,8 @@
     "wagmi": "3.5.0",
     "web-push": "^3.6.7",
     "zod": "^3.22.4",
-    "zod-to-json-schema": "3.25.2"
+    "zod-to-json-schema": "3.25.2",
+    "@optimitron/mcp": "workspace:^"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
