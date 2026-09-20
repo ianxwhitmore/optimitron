@@ -114,7 +114,6 @@ export function AboutPage() {
                 <div
                   className={`relative aspect-square w-full overflow-hidden border-b-4 border-primary ${member.photoClassName}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     alt={member.photoAlt}
                     className="h-full w-full object-cover"
